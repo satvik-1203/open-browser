@@ -8,8 +8,7 @@ There ARE buncha brainded browser infra companies nowadays advertising for agent
 
 ## My mission
 
-I want to make deploying and accessing browsers cheap and easy! Also making sure to keep this infra deployable such that you can really OWN the whole browser infra stack with a single command!
-
-I worked on browser infra for the last one year, and I think I've seen enough problems when working with browsers and agents. My mission is to make the solution for everyone
-
-I'm really just doing this for the love of the game! I'm not here to loot or upsell any of you! I really just want to give you a simple way to access a headless browser.
+- Worked on browser infra for the past year
+- Make deploying and accessing browsers cheap and easy!
+- Infra deployable in a single command
+- Just doing this for the love of the game
