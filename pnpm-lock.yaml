@@ -29,6 +29,9 @@ importers:
       react-dom:
         specifier: ^19.2.0
         version: 19.2.0(react@19.2.0)
+      sdk:
+        specifier: workspace:*
+        version: link:../sdk
     devDependencies:
       '@repo/eslint-config':
         specifier: workspace:*

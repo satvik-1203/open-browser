@@ -11,7 +11,7 @@
   },
   "scripts": {
     "build": "tsc && tsc-alias",
-    "dev": "tsc --watch --preserveWatchOutput",
+    "dev": "tsc --watch --preserveWatchOutput & tsc-alias --watch",
     "lint": "eslint --max-warnings 0",
     "check-types": "tsc --noEmit"
   },

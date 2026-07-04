@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { BrowserServerError } from "sdk";
+import { browserServer } from "@/lib/browserServer";
 
 export default function StopPage() {
   const [id, setId] = useState("");
@@ -15,20 +17,14 @@ export default function StopPage() {
     setResponse(null);
 
     try {
-      const res = await fetch("/api/browser/stop", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      const data = (await res.json()) as { error?: string };
-
-      if (!res.ok) {
-        setError(data.error ?? `request failed with status ${res.status}`);
-      } else {
-        setResponse(data);
-      }
+      const data = await browserServer.stop(id);
+      setResponse(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(
+        err instanceof BrowserServerError
+          ? (err as Error).message
+          : String(err),
+      );
     } finally {
       setLoading(false);
     }
