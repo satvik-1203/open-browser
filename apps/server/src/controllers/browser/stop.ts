@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { stopBrowser } from "../../services/browser/stopBrowser.js";
+import { stopBrowser } from "@/services/browser/stopBrowser.js";
 
 export async function stop(req: Request, res: Response) {
   const { id } = req.body as { id?: string };

@@ -1,8 +1,10 @@
 import { logger, requestLogger } from "@repo/logger";
 import express from "express";
-import { browserRouter } from "./routes/browser/index.js";
-import { browserCount } from "./services/browser/browserCount.js";
-import { closeAllBrowsers } from "./services/browser/closeAllBrowsers.js";
+import { browserRouter } from "@/routes/browser/index.js";
+import { browserCount } from "@/services/browser/browserCount.js";
+import { closeAllBrowsers } from "@/services/browser/closeAllBrowsers.js";
+import { proxyDevtools } from "@/services/browser/proxyDevtools.js";
+import { resolveDevtoolsUpstream } from "@/services/browser/resolveDevtoolsUpstream.js";
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
@@ -22,6 +24,22 @@ app.use("/browser", browserRouter);
 
 const server = app.listen(port, () => {
   logger.info("server started", { port, url: `http://localhost:${port}` });
+});
+
+server.on("upgrade", (req, socket, head) => {
+  const match = /^\/browser\/([^/]+)\/(?:page\/([^/]+)\/)?devtools$/.exec(
+    req.url ?? "",
+  );
+  const upstream = match?.[1]
+    ? resolveDevtoolsUpstream(match[1], match[2])
+    : undefined;
+
+  if (!upstream) {
+    socket.destroy();
+    return;
+  }
+
+  proxyDevtools(upstream, req, socket, head);
 });
 
 async function shutdown() {

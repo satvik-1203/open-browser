@@ -1,4 +1,4 @@
-import { browsers } from "../../lib/browsers.js";
+import { browsers } from "@/lib/browsers.js";
 
 export function browserCount(): number {
   return browsers.size;

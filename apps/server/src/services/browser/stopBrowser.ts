@@ -1,4 +1,4 @@
-import { browsers } from "../../lib/browsers.js";
+import { browsers } from "@/lib/browsers.js";
 
 export async function stopBrowser(id: string): Promise<boolean> {
   const browser = browsers.get(id);
