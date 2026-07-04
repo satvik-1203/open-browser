@@ -1,22 +1,9 @@
 import { randomUUID } from "node:crypto";
-import puppeteer, { type CookieData } from "puppeteer";
+import type { StartBrowserOptions } from "@repo/types";
+import puppeteer from "puppeteer";
 import { browsers } from "@/lib/browsers.js";
 
-export interface ProxyOptions {
-  server: string;
-  username?: string;
-  password?: string;
-}
-
-export interface StartBrowserOptions {
-  headless?: boolean;
-  viewport?: { width: number; height: number };
-  url?: string;
-  initialCookie?: CookieData[];
-  localstorage?: Record<string, string>;
-  userAgent?: string;
-  proxy?: ProxyOptions;
-}
+export type { StartBrowserOptions };
 
 export interface StartBrowserResult {
   id: string;

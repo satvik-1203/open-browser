@@ -1,3 +1,4 @@
+import type { StartBrowserResponse } from "@repo/types";
 import type { Request, Response } from "express";
 import {
   LocalStorageRequiresUrlError,
@@ -16,7 +17,8 @@ export async function start(req: Request, res: Response) {
     const pageWs = `${host}/browser/${id}/page/${targetId}/devtools`;
     const debuggerUrl = `http://${host}/browser/${id}/devtools/inspector.html?ws=${pageWs}`;
 
-    res.json({ id, webSocketDebuggerUrl, debuggerUrl });
+    const response: StartBrowserResponse = { id, webSocketDebuggerUrl, debuggerUrl };
+    res.json(response);
   } catch (err) {
     if (err instanceof LocalStorageRequiresUrlError) {
       res.status(400).json({ error: err.message });

@@ -1,4 +1,7 @@
-/** Shared types used across apps and packages. */
+export interface BrowserServerOptions {
+  hostUrl: string;
+}
+
 export type {
   CookieData,
   GetBrowserResponse,
@@ -6,4 +9,4 @@ export type {
   StartBrowserOptions,
   StartBrowserResponse,
   StopBrowserResponse,
-} from "./browser.js";
+} from "@repo/types";

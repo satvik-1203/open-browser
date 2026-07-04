@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@repo/logger": "workspace:*",
+    "@repo/types": "workspace:*",
     "express": "^5.1.0",
     "puppeteer": "^25.3.0",
     "ws": "^8.21.0"
