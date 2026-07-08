@@ -94,6 +94,35 @@ test("get() 404s once a browser has been stopped", async () => {
   );
 });
 
+test("each start() is an isolated profile — no cross-session cookie/localStorage leakage", async () => {
+  const withData = await client.start({
+    headless: true,
+    url: "https://example.com",
+    localstorage: { sandboxProbe: "leaked-if-shared" },
+  });
+  const fresh = await client.start({
+    headless: true,
+    url: "https://example.com",
+  });
+
+  const connected = await puppeteer.connect({
+    browserWSEndpoint: fresh.webSocketDebuggerUrl,
+  });
+  try {
+    const [page] = await connected.pages();
+    assert.ok(page);
+    const leaked = await page.evaluate(() =>
+      window.localStorage.getItem("sandboxProbe"),
+    );
+    assert.equal(leaked, null);
+  } finally {
+    await connected.disconnect();
+  }
+
+  await client.stop(withData.id);
+  await client.stop(fresh.id);
+});
+
 test("get() and stop() 404 for an id that never existed", async () => {
   const bogusId = "00000000-0000-0000-0000-000000000000";
 
