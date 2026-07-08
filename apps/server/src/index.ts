@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { logger, requestLogger } from "@repo/logger";
 import express from "express";
 import { browserRouter } from "@/routes/browser/index.js";
