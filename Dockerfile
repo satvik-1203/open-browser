@@ -33,11 +33,27 @@ RUN pnpm prune --prod
 FROM base AS runner
 WORKDIR /app
 
+# NOTE: PUPPETEER_NO_SANDBOX is intentionally NOT set — Chrome's sandbox stays ON.
+# startBrowser only passes --no-sandbox when this var is "true", so leaving it
+# unset keeps the renderer sandbox active. Chromium here uses the *namespace*
+# sandbox (unprivileged user namespaces); there is no setuid chrome-sandbox helper.
+#
+# No custom seccomp profile is needed OR wanted. Verified on Docker 27.x: under
+# Docker's DEFAULT seccomp, renderers land in their own nested user+pid namespace
+# with all caps dropped and seccomp-bpf active (Seccomp=2, NoNewPrivs=1). A
+# hand-rolled chrome-seccomp.json actually gave *weaker* isolation (seccomp only,
+# no namespace nesting), so we deliberately don't ship one.
+#
+# The only host requirement is that unprivileged user namespaces are permitted
+# (default on Docker Desktop and most Linux hosts). If the sandbox fails to init
+# — Chrome dies at launch with "No usable sandbox!" — the host is blocking them;
+# fix at the host, e.g. on Ubuntu 23.10+/24.04:
+#     sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+# Do NOT paper over it with --no-sandbox or --cap-add=SYS_ADMIN.
 ENV NODE_ENV=production \
     PORT=3001 \
     HOME=/home/browser \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    PUPPETEER_NO_SANDBOX=true
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Debian's chromium package pulls in its own matching runtime dependency
 # closure via apt, which is more reliable across base-image updates than
