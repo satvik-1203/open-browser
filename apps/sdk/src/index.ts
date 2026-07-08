@@ -4,6 +4,7 @@ export type {
   BrowserServerOptions,
   CookieData,
   GetBrowserResponse,
+  GetRecordingUrlResponse,
   ProxyOptions,
   RecordingInfo,
   RecordingStatus,
