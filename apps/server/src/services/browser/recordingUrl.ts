@@ -9,11 +9,16 @@ export function recordingKey(id: string, prefix?: string): string {
 }
 
 /**
- * Object key for a session's CDP log, stored alongside the recording under the
- * same path with a `.log` extension so the two files share a folder.
+ * Object key for one target's CDP log. The logs live in a folder named by the
+ * session id (a sibling of `${id}.mp4`), one `${targetId}.log` file per target
+ * so out-of-process iframes and workers each get their own log.
  */
-export function recordingLogKey(id: string, prefix?: string): string {
-  return objectKey(prefix, `${id}.log`);
+export function recordingLogKey(
+  id: string,
+  targetId: string,
+  prefix?: string,
+): string {
+  return objectKey(prefix, `${id}/${targetId}.log`);
 }
 
 /**

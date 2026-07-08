@@ -6,6 +6,14 @@ export interface CaptureFrame {
   ts: number;
 }
 
+/** A CDP event log captured from one target (the page or a sub-frame/worker). */
+export interface CaptureLog {
+  /** CDP target id the events came from; used as the stored file name. */
+  targetId: string;
+  /** Absolute path to that target's newline-delimited JSON log on disk. */
+  file: string;
+}
+
 /** The result of a completed capture — timestamped stills on disk. */
 export interface Capture {
   /** Temp directory holding the JPEG frames (and later the encoded mp4). */
@@ -16,11 +24,11 @@ export interface Capture {
   /** When recording stopped (epoch ms). */
   stopTs: number;
   /**
-   * Absolute path to the newline-delimited JSON file of CDP protocol events
-   * captured alongside the frames. Present even when empty so the upload path
-   * can rely on it.
+   * One CDP log per target that produced events — the main page plus any
+   * out-of-process iframes/workers attached during the session. The main
+   * target is always present (its file may be empty).
    */
-  logFile: string;
+  logs: CaptureLog[];
 }
 
 /**

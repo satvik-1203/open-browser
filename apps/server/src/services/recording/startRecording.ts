@@ -2,10 +2,11 @@ import { existsSync } from "node:fs";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Page } from "puppeteer";
+import type { CDPSession, Page } from "puppeteer";
 import type {
   Capture,
   CaptureFrame,
+  CaptureLog,
   Recorder,
   RecordingConfig,
 } from "@/services/recording/types";
@@ -17,13 +18,11 @@ const DEFAULT_CONFIG: RecordingConfig = {
   maxHeight: 720,
 };
 
-/** Name of the CDP log file written inside the capture dir. */
-const LOG_FILE_NAME = "cdp.log";
-
 /**
- * CDP domains enabled so their events fire, and the events captured from each.
- * Console output, uncaught exceptions, browser log entries, and network
- * activity together make a useful trace of what the tab did while recorded.
+ * CDP domains enabled on every captured target so their events fire, and the
+ * events captured from each. Console output, uncaught exceptions, browser log
+ * entries, and network activity together trace what a target did while
+ * recorded.
  */
 const CDP_LOG_DOMAINS = [
   "Runtime.enable",
@@ -62,19 +61,51 @@ export async function startRecording(
   const pending: Promise<void>[] = [];
   let frameIndex = 0;
 
-  // Record CDP protocol events as newline-delimited JSON. Best-effort: enabling
-  // a domain or an individual event listener must never break the screencast.
-  const logLines: string[] = [];
-  for (const method of CDP_LOG_EVENTS) {
-    // `method` is a runtime-iterated CDP event name; `never` sidesteps the
-    // per-event overloads on `on` without widening to `any`.
-    client.on(method as never, (params: unknown) => {
-      logLines.push(JSON.stringify({ ts: Date.now(), method, params }));
-    });
+  // One buffer of newline-delimited JSON per target (page + sub-frames/workers),
+  // keyed by target id. Kept in memory and flushed to per-target files on stop.
+  const targetLogs = new Map<string, string[]>();
+
+  function record(targetId: string, method: string, params: unknown): void {
+    const lines = targetLogs.get(targetId);
+    if (lines) lines.push(JSON.stringify({ ts: Date.now(), method, params }));
   }
-  await Promise.allSettled(
-    CDP_LOG_DOMAINS.map((command) => client.send(command)),
-  );
+
+  // Wire a target's CDP session: buffer its events, enable the log domains, and
+  // auto-attach to ITS children so nested iframes/workers are captured too.
+  // Every step is best-effort — logging must never disrupt the live session.
+  async function captureTarget(
+    session: CDPSession,
+    targetId: string,
+  ): Promise<void> {
+    if (targetLogs.has(targetId)) return; // already wired
+    targetLogs.set(targetId, []);
+
+    for (const method of CDP_LOG_EVENTS) {
+      // `method` is a runtime-iterated CDP event name; `never` sidesteps the
+      // per-event overloads on `on` without widening to `any`.
+      session.on(method as never, (params: unknown) =>
+        record(targetId, method, params),
+      );
+    }
+    session.on("Target.attachedToTarget", (event) => {
+      const child = session.connection()?.session(event.sessionId);
+      if (child) void captureTarget(child, event.targetInfo.targetId);
+    });
+
+    await Promise.allSettled(CDP_LOG_DOMAINS.map((cmd) => session.send(cmd)));
+    // `waitForDebuggerOnStart: false` so a new sub-target never pauses waiting
+    // on us — we may miss its very first events, but never stall the page.
+    await session
+      .send("Target.setAutoAttach", {
+        autoAttach: true,
+        waitForDebuggerOnStart: false,
+        flatten: true,
+      })
+      .catch(() => {});
+  }
+
+  const { targetInfo } = await client.send("Target.getTargetInfo");
+  await captureTarget(client, targetInfo.targetId);
 
   client.on("Page.screencastFrame", (event) => {
     // Capture index + timestamp synchronously to preserve frame order even
@@ -121,15 +152,19 @@ export async function startRecording(
         // Ignore — session already detached.
       }
 
-      // Flush the captured CDP events next to the frames (trailing newline so
-      // the file is valid newline-delimited JSON even when empty).
-      const logFile = join(dir, LOG_FILE_NAME);
-      const body = logLines.length ? `${logLines.join("\n")}\n` : "";
-      await writeFile(logFile, body);
+      // Flush each target's CDP events to its own file, named by target id
+      // (trailing newline so the file is valid newline-delimited JSON even when
+      // empty).
+      const logs: CaptureLog[] = [];
+      for (const [targetId, lines] of targetLogs) {
+        const file = join(dir, `${targetId}.log`);
+        await writeFile(file, lines.length ? `${lines.join("\n")}\n` : "");
+        logs.push({ targetId, file });
+      }
 
       // Only keep frames that actually made it to disk.
       const written = frames.filter((frame) => existsSync(frame.file));
-      return { dir, frames: written, startTs, stopTs, logFile };
+      return { dir, frames: written, startTs, stopTs, logs };
     },
   };
 }
