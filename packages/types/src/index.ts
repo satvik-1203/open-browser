@@ -2,6 +2,7 @@
 export type {
   CookieData,
   GetBrowserResponse,
+  GetRecordingUrlResponse,
   ProxyOptions,
   StartBrowserOptions,
   StartBrowserResponse,

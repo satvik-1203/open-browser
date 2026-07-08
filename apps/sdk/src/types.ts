@@ -5,6 +5,7 @@ export interface BrowserServerOptions {
 export type {
   CookieData,
   GetBrowserResponse,
+  GetRecordingUrlResponse,
   ProxyOptions,
   RecordingInfo,
   RecordingStatus,

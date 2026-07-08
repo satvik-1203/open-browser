@@ -81,11 +81,14 @@ test("records the tab, encodes an mp4, and stores it in S3", { skip }, async () 
 
     const stopped = await client.stop(started.id);
     assert.equal(stopped.recording?.status, "completed");
-    assert.ok(stopped.recording?.key, "expected a recording key");
-    assert.ok(stopped.recording?.url, "expected a recording url");
+
+    // The URL comes from the dedicated endpoint, not the stop payload.
+    const url = await client.getSessionRecordingUrl(started.id);
+    assert.ok(url, "expected a recording url");
 
     // The object should exist and look like a non-empty mp4.
-    const head = await headObject(stopped.recording.key);
+    const key = new URL(url).pathname.slice(1);
+    const head = await headObject(key);
     assert.ok((head.ContentLength ?? 0) > 0, "recording should not be empty");
     assert.equal(head.ContentType, "video/mp4");
   } finally {
@@ -160,14 +163,17 @@ test(
 
       const stopped = await client.stop(started.id);
       assert.equal(stopped.recording?.status, "completed");
-      assert.ok(stopped.recording?.key, "expected a recording key");
 
-      const head = await headObject(stopped.recording.key);
+      const url = await client.getSessionRecordingUrl(started.id);
+      assert.ok(url, "expected a recording url");
+
+      const key = new URL(url).pathname.slice(1);
+      const head = await headObject(key);
       assert.ok((head.ContentLength ?? 0) > 0, "recording should not be empty");
       assert.equal(head.ContentType, "video/mp4");
 
       // Surface the replay location in the test output.
-      console.log(`\n▶ multi-step replay stored: ${stopped.recording.url}\n`);
+      console.log(`\n▶ multi-step replay stored: ${url}\n`);
     } finally {
       await server.stop();
     }

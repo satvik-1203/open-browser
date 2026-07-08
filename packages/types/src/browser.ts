@@ -43,6 +43,11 @@ export interface StopBrowserResponse {
   recording?: RecordingInfo;
 }
 
+export interface GetRecordingUrlResponse {
+  /** Resolvable URL to the session's recording in the server's storage. */
+  url: string;
+}
+
 export interface GetBrowserResponse {
   id: string;
   connected: boolean;

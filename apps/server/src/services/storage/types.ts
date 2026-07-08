@@ -14,11 +14,15 @@ export interface StoreResult {
 }
 
 /**
- * A storage backend. Today it only needs to `store()`; the interface is the
- * seam that future methods (get/delete/presign) and backends slot into.
+ * A storage backend. The interface is the seam that future methods
+ * (get/delete/presign) and backends slot into.
  */
 export interface StorageAdapter {
   store(input: StoreInput): Promise<StoreResult>;
+  /** Resolvable URL for an object key. Deterministic; does not check existence. */
+  url(key: string): string;
+  /** Whether an object exists at `key`. */
+  exists(key: string): Promise<boolean>;
 }
 
 /** The storage backend this server resolved from its environment. */

@@ -1,11 +1,12 @@
 import { createReadStream } from "node:fs";
 import { logger } from "@repo/logger";
 import type { BrowserSession } from "@/lib/browsers.types";
+import { recordingKey } from "@/services/browser/recordingUrl";
 import {
   cleanupRecording,
   encodeRecording,
 } from "@/services/recording/index";
-import { getStorage, objectKey } from "@/services/storage/index";
+import { getStorage } from "@/services/storage/index";
 
 /**
  * Stop the session's recorder, encode the mp4, and upload it via the server's
@@ -30,14 +31,14 @@ export async function finalizeRecording(session: BrowserSession): Promise<void> 
     dir = capture.dir;
 
     const mp4Path = await encodeRecording(capture);
-    const key = objectKey(storage.prefix, `${session.id}.mp4`);
-    const { url } = await storage.adapter.store({
+    const key = recordingKey(session.id, storage.prefix);
+    await storage.adapter.store({
       key,
       body: createReadStream(mp4Path),
       contentType: "video/mp4",
     });
 
-    session.recording = { status: "completed", key, url };
+    session.recording = { status: "completed" };
     logger.info("recording stored", { id: session.id, key });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
