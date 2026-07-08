@@ -1,5 +1,5 @@
-import { browsers } from "@/lib/browsers.js";
+import { sessions } from "@/lib/browsers";
 
 export function browserCount(): number {
-  return browsers.size;
+  return sessions.size;
 }

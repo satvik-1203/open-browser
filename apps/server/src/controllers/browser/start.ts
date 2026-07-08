@@ -1,11 +1,11 @@
-import type { StartBrowserResponse } from "@repo/types";
+import type { StartBrowserOptions, StartBrowserResponse } from "@repo/types";
 import type { Request, Response } from "express";
-import { buildDevtoolsUrls } from "@/lib/devtoolsUrls.js";
+import { buildDevtoolsUrls } from "@/lib/devtoolsUrls";
 import {
   LocalStorageRequiresUrlError,
-  startBrowser,
-  type StartBrowserOptions,
-} from "@/services/browser/startBrowser.js";
+  RecordingRequiresAdapterError,
+} from "@/services/browser/errors";
+import { startBrowser } from "@/services/browser/startBrowser";
 
 export async function start(req: Request, res: Response) {
   try {
@@ -21,7 +21,10 @@ export async function start(req: Request, res: Response) {
     const response: StartBrowserResponse = { id, webSocketDebuggerUrl, debuggerUrl };
     res.json(response);
   } catch (err) {
-    if (err instanceof LocalStorageRequiresUrlError) {
+    if (
+      err instanceof LocalStorageRequiresUrlError ||
+      err instanceof RecordingRequiresAdapterError
+    ) {
       res.status(400).json({ error: err.message });
       return;
     }

@@ -1,3 +1,3 @@
-import type { Browser } from "puppeteer";
+import type { BrowserSession } from "@/lib/browsers.types";
 
-export const browsers = new Map<string, Browser>();
+export const sessions = new Map<string, BrowserSession>();

@@ -1,11 +1,20 @@
-import { browsers } from "@/lib/browsers.js";
+import { sessions } from "@/lib/browsers";
+import { finalizeRecording } from "@/services/browser/finalizeRecording";
+import type { StopBrowserResult } from "@/services/browser/types";
 
-export async function stopBrowser(id: string): Promise<boolean> {
-  const browser = browsers.get(id);
+export async function stopBrowser(
+  id: string,
+): Promise<StopBrowserResult | undefined> {
+  const session = sessions.get(id);
+  if (!session) return undefined;
 
-  if (!browser) return false;
+  // Encode + upload the recording (if any) while the page is still alive, then
+  // tear the browser down.
+  if (session.recorder) {
+    await finalizeRecording(session);
+  }
 
-  await browser.close();
-  browsers.delete(id);
-  return true;
+  await session.browser.close();
+  sessions.delete(id);
+  return { recording: session.recording };
 }

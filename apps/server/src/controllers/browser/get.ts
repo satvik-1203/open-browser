@@ -1,11 +1,11 @@
 import type { GetBrowserResponse } from "@repo/types";
 import type { Request, Response } from "express";
-import { buildDevtoolsUrls } from "@/lib/devtoolsUrls.js";
-import { getBrowserInfo } from "@/services/browser/getBrowserInfo.js";
+import { buildDevtoolsUrls } from "@/lib/devtoolsUrls";
+import { getBrowserInfo } from "@/services/browser/getBrowserInfo";
 
-export async function get(req: Request, res: Response) {
+export function get(req: Request, res: Response) {
   const { id } = req.params;
-  const info = typeof id === "string" ? await getBrowserInfo(id) : undefined;
+  const info = typeof id === "string" ? getBrowserInfo(id) : undefined;
 
   if (!info) {
     res.status(404).json({ error: "browser not found" });
@@ -23,6 +23,7 @@ export async function get(req: Request, res: Response) {
     connected: info.connected,
     webSocketDebuggerUrl,
     debuggerUrl,
+    recording: info.recording,
   };
   res.json(response);
 }

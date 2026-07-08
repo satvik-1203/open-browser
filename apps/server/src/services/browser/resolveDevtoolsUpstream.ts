@@ -1,10 +1,10 @@
-import { browsers } from "@/lib/browsers.js";
+import { sessions } from "@/lib/browsers";
 
 export function resolveDevtoolsUpstream(
   id: string,
   targetId?: string,
 ): string | undefined {
-  const browser = browsers.get(id);
+  const browser = sessions.get(id)?.browser;
 
   if (!browser) return undefined;
   if (!targetId) return browser.wsEndpoint();

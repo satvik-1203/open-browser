@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { resolveInspectorAssetUpstream } from "@/services/browser/resolveInspectorAssetUpstream.js";
+import { resolveInspectorAssetUpstream } from "@/services/browser/resolveInspectorAssetUpstream";
 
 export async function inspectorAsset(req: Request, res: Response) {
   const { id, assetPath } = req.params;

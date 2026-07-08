@@ -1,17 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { StartBrowserOptions } from "@repo/types";
 import puppeteer from "puppeteer";
-import { browsers } from "@/lib/browsers.js";
-
-export type { StartBrowserOptions };
-
-export interface StartBrowserResult {
-  id: string;
-  wsEndpoint: string;
-  targetId: string;
-}
-
-export class LocalStorageRequiresUrlError extends Error {}
+import { sessions } from "@/lib/browsers";
+import type { BrowserSession } from "@/lib/browsers.types";
+import {
+  LocalStorageRequiresUrlError,
+  RecordingRequiresAdapterError,
+} from "@/services/browser/errors";
+import { finalizeRecording } from "@/services/browser/finalizeRecording";
+import type { StartBrowserResult } from "@/services/browser/types";
+import { startRecording } from "@/services/recording/index";
 
 export async function startBrowser(
   options: StartBrowserOptions,
@@ -24,11 +22,18 @@ export async function startBrowser(
     localstorage,
     userAgent,
     proxy,
+    record,
+    adapter,
   } = options;
 
   if (localstorage && !url) {
     throw new LocalStorageRequiresUrlError(
       "localstorage requires url to set an origin",
+    );
+  }
+  if (record && !adapter) {
+    throw new RecordingRequiresAdapterError(
+      "record requires an adapter to store the recording",
     );
   }
 
@@ -74,7 +79,24 @@ export async function startBrowser(
   await cdpSession.detach();
 
   const id = randomUUID();
-  browsers.set(id, browser);
+  const session: BrowserSession = {
+    id,
+    browser,
+    targetId: targetInfo.targetId,
+  };
+
+  if (record && adapter) {
+    session.adapter = adapter;
+    session.recorder = await startRecording(page);
+    session.recording = { status: "recording" };
+    // Best-effort upload if the browser dies unexpectedly. No-op on the normal
+    // stop path, where the recorder has already been finalized before close().
+    browser.once("disconnected", () => {
+      void finalizeRecording(session);
+    });
+  }
+
+  sessions.set(id, session);
   return {
     id,
     wsEndpoint: browser.wsEndpoint(),
