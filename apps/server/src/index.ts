@@ -27,11 +27,13 @@ const server = app.listen(port, () => {
 });
 
 server.on("upgrade", (req, socket, head) => {
-  const match = /^\/browser\/([^/]+)\/(?:page\/([^/]+)\/)?devtools$/.exec(
-    req.url ?? "",
-  );
-  const upstream = match?.[1]
-    ? resolveDevtoolsUpstream(match[1], match[2])
+  const match =
+    /^\/devtools\/(?:browser\/(?<browserId>[^/]+)|page\/(?<pageId>[^/]+)\/(?<targetId>[^/]+))$/.exec(
+      req.url ?? "",
+    );
+  const id = match?.groups?.browserId ?? match?.groups?.pageId;
+  const upstream = id
+    ? resolveDevtoolsUpstream(id, match?.groups?.targetId)
     : undefined;
 
   if (!upstream) {

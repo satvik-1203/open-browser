@@ -23,15 +23,15 @@ importers:
       next:
         specifier: 16.2.0
         version: 16.2.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      open-browser-sdk:
+        specifier: workspace:*
+        version: link:../sdk
       react:
         specifier: ^19.2.0
         version: 19.2.0
       react-dom:
         specifier: ^19.2.0
         version: 19.2.0(react@19.2.0)
-      sdk:
-        specifier: workspace:*
-        version: link:../sdk
     devDependencies:
       '@repo/eslint-config':
         specifier: workspace:*
@@ -56,14 +56,13 @@ importers:
         version: 5.9.2
 
   apps/sdk:
-    dependencies:
-      '@repo/types':
-        specifier: workspace:*
-        version: link:../../packages/types
     devDependencies:
       '@repo/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
+      '@repo/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config

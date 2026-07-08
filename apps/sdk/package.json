@@ -1,25 +1,27 @@
 {
-  "name": "sdk",
-  "version": "0.1.0",
+  "name": "open-browser-sdk",
+  "version": "0.1.1",
   "type": "module",
-  "private": true,
+  "private": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc && tsc-alias",
     "dev": "tsc --watch --preserveWatchOutput & tsc-alias --watch",
     "lint": "eslint --max-warnings 0",
-    "check-types": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@repo/types": "workspace:*"
+    "check-types": "tsc --noEmit",
+    "prepublishOnly": "pnpm run check-types && pnpm run lint && pnpm run build"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
+    "@repo/types": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^22.15.3",
     "eslint": "^9.39.1",

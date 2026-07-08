@@ -1,5 +1,6 @@
 import type { StartBrowserResponse } from "@repo/types";
 import type { Request, Response } from "express";
+import { buildDevtoolsUrls } from "@/lib/devtoolsUrls.js";
 import {
   LocalStorageRequiresUrlError,
   startBrowser,
@@ -11,11 +12,11 @@ export async function start(req: Request, res: Response) {
     const { id, targetId } = await startBrowser(
       req.body as StartBrowserOptions,
     );
-    const host = req.headers.host;
-
-    const webSocketDebuggerUrl = `ws://${host}/browser/${id}/devtools`;
-    const pageWs = `${host}/browser/${id}/page/${targetId}/devtools`;
-    const debuggerUrl = `http://${host}/browser/${id}/devtools/inspector.html?ws=${pageWs}`;
+    const { webSocketDebuggerUrl, debuggerUrl } = buildDevtoolsUrls(
+      req.headers.host,
+      id,
+      targetId,
+    );
 
     const response: StartBrowserResponse = { id, webSocketDebuggerUrl, debuggerUrl };
     res.json(response);

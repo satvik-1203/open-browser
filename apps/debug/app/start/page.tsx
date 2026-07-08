@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BrowserServerError } from "sdk";
+import { BrowserServerError } from "open-browser-sdk";
 import { browserServer } from "@/lib/browserServer";
 
 export default function StartPage() {

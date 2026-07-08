@@ -1,5 +1,6 @@
 import type { GetBrowserResponse } from "@repo/types";
 import type { Request, Response } from "express";
+import { buildDevtoolsUrls } from "@/lib/devtoolsUrls.js";
 import { getBrowserInfo } from "@/services/browser/getBrowserInfo.js";
 
 export async function get(req: Request, res: Response) {
@@ -11,10 +12,11 @@ export async function get(req: Request, res: Response) {
     return;
   }
 
-  const host = req.headers.host;
-  const webSocketDebuggerUrl = `ws://${host}/browser/${info.id}/devtools`;
-  const pageWs = `${host}/browser/${info.id}/page/${info.targetId}/devtools`;
-  const debuggerUrl = `http://${host}/browser/${info.id}/devtools/inspector.html?ws=${pageWs}`;
+  const { webSocketDebuggerUrl, debuggerUrl } = buildDevtoolsUrls(
+    req.headers.host,
+    info.id,
+    info.targetId,
+  );
 
   const response: GetBrowserResponse = {
     id: info.id,
