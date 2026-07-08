@@ -36,10 +36,18 @@ const CDP_LOG_EVENTS = [
   "Log.entryAdded",
   "Network.requestWillBeSent",
   "Network.responseReceived",
+  "Network.loadingFinished",
   "Network.loadingFailed",
   "Page.frameNavigated",
   "Page.loadEventFired",
 ] as const;
+
+/**
+ * Cap on a single captured response body (bytes). Bodies are buffered in memory
+ * until stop(), so an oversized one is logged as a marker instead of its
+ * contents to keep the recorder from ballooning on large downloads.
+ */
+const MAX_BODY_BYTES = 5 * 1024 * 1024;
 
 function recordingTmpBase(): string {
   return process.env.RECORDING_TMP_DIR || tmpdir();
@@ -59,6 +67,8 @@ export async function startRecording(
   const client = await page.createCDPSession();
   const frames: CaptureFrame[] = [];
   const pending: Promise<void>[] = [];
+  // In-flight Network.getResponseBody calls, awaited before the session detaches.
+  const pendingBodies: Promise<void>[] = [];
   let frameIndex = 0;
 
   // One buffer of newline-delimited JSON per target (page + sub-frames/workers),
@@ -87,6 +97,33 @@ export async function startRecording(
         record(targetId, method, params),
       );
     }
+    // Fetch each response body once loading finishes (it's only retained
+    // briefly after that) and record it as a synthetic Network.responseBody
+    // entry, correlated to its request by requestId.
+    session.on("Network.loadingFinished", (event) => {
+      pendingBodies.push(
+        (async () => {
+          try {
+            const { body, base64Encoded } = await session.send(
+              "Network.getResponseBody",
+              { requestId: event.requestId },
+            );
+            const size = base64Encoded
+              ? Math.floor((body.length * 3) / 4)
+              : Buffer.byteLength(body);
+            record(
+              targetId,
+              "Network.responseBody",
+              size > MAX_BODY_BYTES
+                ? { requestId: event.requestId, skipped: "too-large", size }
+                : { requestId: event.requestId, base64Encoded, body },
+            );
+          } catch {
+            // No body available (redirect, evicted, detached) — skip silently.
+          }
+        })(),
+      );
+    });
     session.on("Target.attachedToTarget", (event) => {
       const child = session.connection()?.session(event.sessionId);
       if (child) void captureTarget(child, event.targetInfo.targetId);
@@ -146,6 +183,8 @@ export async function startRecording(
         // Browser may already be gone; frames already on disk are still usable.
       }
       await Promise.allSettled(pending);
+      // Bodies must be fetched before detach — the session can't answer after.
+      await Promise.allSettled(pendingBodies);
       try {
         await client.detach();
       } catch {
