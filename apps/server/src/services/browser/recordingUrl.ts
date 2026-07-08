@@ -9,6 +9,14 @@ export function recordingKey(id: string, prefix?: string): string {
 }
 
 /**
+ * Object key for a session's CDP log, stored alongside the recording under the
+ * same path with a `.log` extension so the two files share a folder.
+ */
+export function recordingLogKey(id: string, prefix?: string): string {
+  return objectKey(prefix, `${id}.log`);
+}
+
+/**
  * Short-lived signed URL for a session's recording, derived from its id and the
  * server's storage config. Returns `undefined` when storage isn't configured or
  * when no recording exists at that key (never recorded, or still in flight).

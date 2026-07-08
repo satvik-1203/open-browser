@@ -1,7 +1,7 @@
 import { createReadStream } from "node:fs";
 import { logger } from "@repo/logger";
 import type { BrowserSession } from "@/lib/browsers.types";
-import { recordingKey } from "@/services/browser/recordingUrl";
+import { recordingKey, recordingLogKey } from "@/services/browser/recordingUrl";
 import {
   cleanupRecording,
   encodeRecording,
@@ -38,8 +38,16 @@ export async function finalizeRecording(session: BrowserSession): Promise<void> 
       contentType: "video/mp4",
     });
 
+    // Store the CDP log next to the video: same key, `.log` extension.
+    const logKey = recordingLogKey(session.id, storage.prefix);
+    await storage.adapter.store({
+      key: logKey,
+      body: createReadStream(capture.logFile),
+      contentType: "application/x-ndjson",
+    });
+
     session.recording = { status: "completed" };
-    logger.info("recording stored", { id: session.id, key });
+    logger.info("recording stored", { id: session.id, key, logKey });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     session.recording = { status: "failed", error: message };

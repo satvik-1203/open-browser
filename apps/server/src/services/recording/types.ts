@@ -15,6 +15,12 @@ export interface Capture {
   startTs: number;
   /** When recording stopped (epoch ms). */
   stopTs: number;
+  /**
+   * Absolute path to the newline-delimited JSON file of CDP protocol events
+   * captured alongside the frames. Present even when empty so the upload path
+   * can rely on it.
+   */
+  logFile: string;
 }
 
 /**
