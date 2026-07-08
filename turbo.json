@@ -1,7 +1,7 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
-  "globalEnv": ["SERVER_URL"],
+  "globalEnv": ["SERVER_URL", "PORT", "PUPPETEER_NO_SANDBOX"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
