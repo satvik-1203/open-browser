@@ -5,11 +5,12 @@ import { sessions } from "@/lib/browsers";
 import type { BrowserSession } from "@/lib/browsers.types";
 import {
   LocalStorageRequiresUrlError,
-  RecordingRequiresAdapterError,
+  RecordingNotConfiguredError,
 } from "@/services/browser/errors";
 import { finalizeRecording } from "@/services/browser/finalizeRecording";
 import type { StartBrowserResult } from "@/services/browser/types";
 import { startRecording } from "@/services/recording/index";
+import { isStorageConfigured } from "@/services/storage/index";
 
 export async function startBrowser(
   options: StartBrowserOptions,
@@ -23,7 +24,6 @@ export async function startBrowser(
     userAgent,
     proxy,
     record,
-    adapter,
   } = options;
 
   if (localstorage && !url) {
@@ -31,9 +31,9 @@ export async function startBrowser(
       "localstorage requires url to set an origin",
     );
   }
-  if (record && !adapter) {
-    throw new RecordingRequiresAdapterError(
-      "record requires an adapter to store the recording",
+  if (record && !isStorageConfigured()) {
+    throw new RecordingNotConfiguredError(
+      "recording is not configured on this server",
     );
   }
 
@@ -85,8 +85,7 @@ export async function startBrowser(
     targetId: targetInfo.targetId,
   };
 
-  if (record && adapter) {
-    session.adapter = adapter;
+  if (record) {
     session.recorder = await startRecording(page);
     session.recording = { status: "recording" };
     // Best-effort upload if the browser dies unexpectedly. No-op on the normal

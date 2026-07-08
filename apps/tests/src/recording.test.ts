@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { BrowserServer, S3Adapter } from "open-browser-sdk";
+import { BrowserServer } from "open-browser-sdk";
 import puppeteer from "puppeteer";
 import { startTestServer } from "./testServer";
 
@@ -21,7 +21,6 @@ const bucket = process.env.AWS_S3_BUCKET;
 const accessKeyId = process.env.AWS_ACCESS_KEY_ID ?? process.env.AWS_ACCESS_KEY;
 const secretAccessKey =
   process.env.AWS_SECRET_ACCESS_KEY ?? process.env.AWS_SECRET_KEY;
-const prefix = process.env.AWS_S3_PREFIX ?? "recordings-test/";
 
 const aws =
   region && bucket && accessKeyId && secretAccessKey
@@ -34,18 +33,11 @@ const skip = aws
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Storage lives on the server now: the spawned test server inherits the AWS_*
+// vars loaded above (see testServer.ts) and configures its adapter from them.
+// The client just asks to record.
 function newClient(hostUrl: string): BrowserServer {
-  return new BrowserServer({
-    hostUrl,
-    // aws is guaranteed defined when these tests actually run (see `skip`).
-    adapter: new S3Adapter({
-      bucket: aws!.bucket,
-      region: aws!.region,
-      accessKeyId: aws!.accessKeyId,
-      secretAccessKey: aws!.secretAccessKey,
-      prefix,
-    }),
-  });
+  return new BrowserServer({ hostUrl });
 }
 
 async function headObject(key: string) {

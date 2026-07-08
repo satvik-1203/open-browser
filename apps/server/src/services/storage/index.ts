@@ -1,8 +1,9 @@
-export { createAdapter } from "./createAdapter";
+export { getStorage, isStorageConfigured } from "./getStorage";
 export { objectKey } from "./objectKey";
-export { createS3Adapter } from "./s3Adapter";
 export type {
-  ServerStorageAdapter,
+  StorageAdapter,
+  StorageConfig,
+  StorageProvider,
   StoreInput,
   StoreResult,
 } from "./types";

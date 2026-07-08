@@ -1,5 +1,4 @@
 import type { RecordingInfo } from "./recording";
-import type { StorageAdapterDescriptor } from "./storage";
 
 export interface ProxyOptions {
   server: string;
@@ -26,10 +25,11 @@ export interface StartBrowserOptions {
   localstorage?: Record<string, string>;
   userAgent?: string;
   proxy?: ProxyOptions;
-  /** Record the tab and store it via `adapter` when the session ends. */
+  /**
+   * Record the tab and store it when the session ends. Storage is configured on
+   * the server; recording fails if the server has no storage configured.
+   */
   record?: boolean;
-  /** Storage target for the recording. Required when `record` is true. */
-  adapter?: StorageAdapterDescriptor;
 }
 
 export interface StartBrowserResponse {

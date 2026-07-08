@@ -8,7 +8,3 @@ export type {
   StopBrowserResponse,
 } from "./browser";
 export type { RecordingInfo, RecordingStatus } from "./recording";
-export type {
-  S3StorageAdapterDescriptor,
-  StorageAdapterDescriptor,
-} from "./storage";

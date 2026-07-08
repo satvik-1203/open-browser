@@ -1,5 +1,3 @@
-export { S3Adapter } from "@/adapters/index";
-export type { S3AdapterConfig, StorageAdapter } from "@/adapters/index";
 export { BrowserServer } from "@/client";
 export { BrowserServerError } from "@/errors";
 export type {
@@ -9,9 +7,7 @@ export type {
   ProxyOptions,
   RecordingInfo,
   RecordingStatus,
-  S3StorageAdapterDescriptor,
   StartBrowserOptions,
   StartBrowserResponse,
-  StorageAdapterDescriptor,
   StopBrowserResponse,
 } from "@/types";

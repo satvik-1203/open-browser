@@ -1,4 +1,4 @@
-import type { RecordingInfo, StorageAdapterDescriptor } from "@repo/types";
+import type { RecordingInfo } from "@repo/types";
 import type { Browser } from "puppeteer";
 import type { Recorder } from "@/services/recording/types";
 
@@ -12,8 +12,6 @@ export interface BrowserSession {
   targetId: string;
   /** Active tab recorder, present only when the session was started with `record`. */
   recorder?: Recorder;
-  /** Where the recording should be stored, captured from the start request. */
-  adapter?: StorageAdapterDescriptor;
   /** Current recording state, surfaced on get()/stop(). */
   recording?: RecordingInfo;
 }

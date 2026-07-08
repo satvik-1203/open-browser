@@ -1,20 +1,18 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
-import type { S3StorageAdapterDescriptor } from "@repo/types";
 import type {
-  ServerStorageAdapter,
+  StorageAdapter,
   StoreInput,
   StoreResult,
 } from "@/services/storage/types";
+import type { S3Config } from "./types";
 
-export function createS3Adapter(
-  descriptor: S3StorageAdapterDescriptor,
-): ServerStorageAdapter {
+export function createS3Adapter(config: S3Config): StorageAdapter {
   const client = new S3Client({
-    region: descriptor.region,
+    region: config.region,
     credentials: {
-      accessKeyId: descriptor.accessKeyId,
-      secretAccessKey: descriptor.secretAccessKey,
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
     },
   });
 
@@ -23,7 +21,7 @@ export function createS3Adapter(
       const upload = new Upload({
         client,
         params: {
-          Bucket: descriptor.bucket,
+          Bucket: config.bucket,
           Key: key,
           Body: body,
           ContentType: contentType,
@@ -33,7 +31,7 @@ export function createS3Adapter(
 
       return {
         key,
-        url: `https://${descriptor.bucket}.s3.${descriptor.region}.amazonaws.com/${key}`,
+        url: `https://${config.bucket}.s3.${config.region}.amazonaws.com/${key}`,
       };
     },
   };

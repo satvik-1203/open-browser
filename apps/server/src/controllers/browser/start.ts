@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { buildDevtoolsUrls } from "@/lib/devtoolsUrls";
 import {
   LocalStorageRequiresUrlError,
-  RecordingRequiresAdapterError,
+  RecordingNotConfiguredError,
 } from "@/services/browser/errors";
 import { startBrowser } from "@/services/browser/startBrowser";
 
@@ -23,7 +23,7 @@ export async function start(req: Request, res: Response) {
   } catch (err) {
     if (
       err instanceof LocalStorageRequiresUrlError ||
-      err instanceof RecordingRequiresAdapterError
+      err instanceof RecordingNotConfiguredError
     ) {
       res.status(400).json({ error: err.message });
       return;
