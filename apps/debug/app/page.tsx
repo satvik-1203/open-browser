@@ -17,6 +17,10 @@ export default function Home() {
         <li>
           <Link href="/stop">Stop</Link> — stop a browser by id
         </li>
+        <li>
+          <Link href="/recording">Recording</Link> — fetch and play a
+          session&apos;s S3 recording by id
+        </li>
       </ul>
     </main>
   );

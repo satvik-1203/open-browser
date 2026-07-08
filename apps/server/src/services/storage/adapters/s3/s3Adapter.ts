@@ -1,5 +1,10 @@
-import { HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  GetObjectCommand,
+  HeadObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type {
   StorageAdapter,
   StoreInput,
@@ -34,6 +39,13 @@ export function createS3Adapter(config: S3Config): StorageAdapter {
       await upload.done();
 
       return { key, url: url(key) };
+    },
+    signedUrl(key: string, expiresInSeconds: number): Promise<string> {
+      return getSignedUrl(
+        client,
+        new GetObjectCommand({ Bucket: config.bucket, Key: key }),
+        { expiresIn: expiresInSeconds },
+      );
     },
     async exists(key: string): Promise<boolean> {
       try {
