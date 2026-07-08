@@ -32,10 +32,19 @@ export async function startBrowser(
     );
   }
 
+  const sandboxArgs =
+    process.env.PUPPETEER_NO_SANDBOX === "true"
+      ? ["--no-sandbox", "--disable-setuid-sandbox"]
+      : [];
+
   const browser = await puppeteer.launch({
     headless,
     defaultViewport: viewport ?? null,
-    args: proxy ? [`--proxy-server=${proxy.server}`] : [],
+    args: [
+      "--disable-dev-shm-usage",
+      ...sandboxArgs,
+      ...(proxy ? [`--proxy-server=${proxy.server}`] : []),
+    ],
   });
 
   const page = (await browser.pages())[0];
