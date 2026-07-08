@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { BrowserServer, BrowserServerError } from "open-browser-sdk";
 import puppeteer from "puppeteer";
-import { startTestServer, type TestServer } from "./testServer.js";
+import { startTestServer, type TestServer } from "./testServer";
 
 const PORT = 3910;
 

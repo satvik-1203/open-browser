@@ -1,23 +1,14 @@
-import { browsers } from "@/lib/browsers.js";
+import { sessions } from "@/lib/browsers";
+import type { BrowserInfo } from "@/services/browser/types";
 
-export interface BrowserInfo {
-  id: string;
-  connected: boolean;
-  targetId: string;
-}
+export function getBrowserInfo(id: string): BrowserInfo | undefined {
+  const session = sessions.get(id);
+  if (!session) return undefined;
 
-export async function getBrowserInfo(
-  id: string,
-): Promise<BrowserInfo | undefined> {
-  const browser = browsers.get(id);
-  if (!browser) return undefined;
-
-  const page = (await browser.pages())[0];
-  if (!page) return undefined;
-
-  const cdpSession = await page.createCDPSession();
-  const { targetInfo } = await cdpSession.send("Target.getTargetInfo");
-  await cdpSession.detach();
-
-  return { id, connected: browser.connected, targetId: targetInfo.targetId };
+  return {
+    id: session.id,
+    connected: session.browser.connected,
+    targetId: session.targetId,
+    recording: session.recording,
+  };
 }

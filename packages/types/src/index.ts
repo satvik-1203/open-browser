@@ -6,4 +6,5 @@ export type {
   StartBrowserOptions,
   StartBrowserResponse,
   StopBrowserResponse,
-} from "./browser.js";
+} from "./browser";
+export type { RecordingInfo, RecordingStatus } from "./recording";

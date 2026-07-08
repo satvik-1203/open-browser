@@ -1,14 +1,19 @@
 import "dotenv/config";
 import { logger, requestLogger } from "@repo/logger";
 import express from "express";
-import { browserRouter } from "@/routes/browser/index.js";
-import { browserCount } from "@/services/browser/browserCount.js";
-import { closeAllBrowsers } from "@/services/browser/closeAllBrowsers.js";
-import { proxyDevtools } from "@/services/browser/proxyDevtools.js";
-import { resolveDevtoolsUpstream } from "@/services/browser/resolveDevtoolsUpstream.js";
+import { browserRouter } from "@/routes/browser/index";
+import { browserCount } from "@/services/browser/browserCount";
+import { closeAllBrowsers } from "@/services/browser/closeAllBrowsers";
+import { proxyDevtools } from "@/services/browser/proxyDevtools";
+import { resolveDevtoolsUpstream } from "@/services/browser/resolveDevtoolsUpstream";
+import { isStorageConfigured } from "@/services/storage/index";
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
+
+// Build the recording storage adapter once at startup so misconfiguration is
+// visible at boot rather than on the first record request.
+const recordingEnabled = isStorageConfigured();
 
 app.use(requestLogger);
 app.use(express.json());
@@ -25,6 +30,7 @@ app.use("/browser", browserRouter);
 
 const server = app.listen(port, () => {
   logger.info("server started", { port, url: `http://localhost:${port}` });
+  logger.info("recording storage", { configured: recordingEnabled });
 });
 
 server.on("upgrade", (req, socket, head) => {

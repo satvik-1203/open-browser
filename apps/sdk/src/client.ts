@@ -1,11 +1,11 @@
-import { BrowserServerError } from "@/errors.js";
+import { BrowserServerError } from "@/errors";
 import type {
   BrowserServerOptions,
   GetBrowserResponse,
   StartBrowserOptions,
   StartBrowserResponse,
   StopBrowserResponse,
-} from "@/types.js";
+} from "@/types";
 
 export class BrowserServer {
   private readonly hostUrl: string;

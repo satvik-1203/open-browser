@@ -1,10 +1,10 @@
-import { browsers } from "@/lib/browsers.js";
+import { sessions } from "@/lib/browsers";
 
 export function resolveInspectorAssetUpstream(
   id: string,
   assetPath: string,
 ): string | undefined {
-  const browser = browsers.get(id);
+  const browser = sessions.get(id)?.browser;
 
   if (!browser) return undefined;
 

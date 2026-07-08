@@ -6,6 +6,8 @@ export type {
   CookieData,
   GetBrowserResponse,
   ProxyOptions,
+  RecordingInfo,
+  RecordingStatus,
   StartBrowserOptions,
   StartBrowserResponse,
   StopBrowserResponse,

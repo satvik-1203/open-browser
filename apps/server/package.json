@@ -5,12 +5,14 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc && tsc-alias",
+    "build": "tsup",
     "start": "node dist/index.js",
     "lint": "eslint --max-warnings 0",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1081.0",
+    "@aws-sdk/lib-storage": "^3.1081.0",
     "@repo/logger": "workspace:*",
     "@repo/types": "workspace:*",
     "dotenv": "^16.4.5",
@@ -25,7 +27,7 @@
     "@types/node": "^22.15.3",
     "@types/ws": "^8.18.1",
     "eslint": "^9.39.1",
-    "tsc-alias": "^1.8.17",
+    "tsup": "^8.5.1",
     "tsx": "^4.20.3",
     "typescript": "5.9.2"
   }

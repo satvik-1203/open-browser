@@ -1,3 +1,5 @@
+import type { RecordingInfo } from "./recording";
+
 export interface ProxyOptions {
   server: string;
   username?: string;
@@ -23,6 +25,11 @@ export interface StartBrowserOptions {
   localstorage?: Record<string, string>;
   userAgent?: string;
   proxy?: ProxyOptions;
+  /**
+   * Record the tab and store it when the session ends. Storage is configured on
+   * the server; recording fails if the server has no storage configured.
+   */
+  record?: boolean;
 }
 
 export interface StartBrowserResponse {
@@ -33,6 +40,7 @@ export interface StartBrowserResponse {
 
 export interface StopBrowserResponse {
   id: string;
+  recording?: RecordingInfo;
 }
 
 export interface GetBrowserResponse {
@@ -40,4 +48,5 @@ export interface GetBrowserResponse {
   connected: boolean;
   webSocketDebuggerUrl: string;
   debuggerUrl: string;
+  recording?: RecordingInfo;
 }
