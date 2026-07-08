@@ -12,9 +12,9 @@
   },
   "dependencies": {
     "next": "16.2.0",
+    "open-browser-sdk": "workspace:*",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "open-browser-sdk": "workspace:*"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

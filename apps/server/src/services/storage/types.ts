@@ -21,6 +21,11 @@ export interface StorageAdapter {
   store(input: StoreInput): Promise<StoreResult>;
   /** Resolvable URL for an object key. Deterministic; does not check existence. */
   url(key: string): string;
+  /**
+   * Short-lived signed URL granting read access to a private object, so a
+   * client without credentials can fetch it directly.
+   */
+  signedUrl(key: string, expiresInSeconds: number): Promise<string>;
   /** Whether an object exists at `key`. */
   exists(key: string): Promise<boolean>;
 }
