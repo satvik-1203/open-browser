@@ -4,6 +4,7 @@ export { startRecording } from "./startRecording";
 export type {
   Capture,
   CaptureFrame,
+  CaptureLog,
   Recorder,
   RecordingConfig,
 } from "./types";
