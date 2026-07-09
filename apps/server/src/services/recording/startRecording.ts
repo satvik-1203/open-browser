@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { createWriteStream, existsSync, type WriteStream } from "node:fs";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -43,9 +43,9 @@ const CDP_LOG_EVENTS = [
 ] as const;
 
 /**
- * Cap on a single captured response body (bytes). Bodies are buffered in memory
- * until stop(), so an oversized one is logged as a marker instead of its
- * contents to keep the recorder from ballooning on large downloads.
+ * Cap on a single captured response body (bytes). A body is pulled fully into
+ * memory to fetch it, so an oversized one is logged as a marker instead of its
+ * contents to keep a single large download from spiking the heap.
  */
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 
@@ -71,24 +71,36 @@ export async function startRecording(
   const pendingBodies: Promise<void>[] = [];
   let frameIndex = 0;
 
-  // One buffer of newline-delimited JSON per target (page + sub-frames/workers),
-  // keyed by target id. Kept in memory and flushed to per-target files on stop.
-  const targetLogs = new Map<string, string[]>();
+  // One append-only file per target (page + sub-frames/workers), keyed by target
+  // id. Events are streamed straight to disk as they arrive so nothing but the
+  // in-flight response bodies is held in the heap for the session's duration.
+  const targetStreams = new Map<string, WriteStream>();
+  const logs: CaptureLog[] = [];
 
   function record(targetId: string, method: string, params: unknown): void {
-    const lines = targetLogs.get(targetId);
-    if (lines) lines.push(JSON.stringify({ ts: Date.now(), method, params }));
+    const stream = targetStreams.get(targetId);
+    // `writable` is false once stop() has ended the stream — a late event from a
+    // still-attached child session then no-ops instead of throwing.
+    if (stream?.writable) {
+      stream.write(`${JSON.stringify({ ts: Date.now(), method, params })}\n`);
+    }
   }
 
-  // Wire a target's CDP session: buffer its events, enable the log domains, and
-  // auto-attach to ITS children so nested iframes/workers are captured too.
-  // Every step is best-effort — logging must never disrupt the live session.
+  // Wire a target's CDP session: stream its events to a file, enable the log
+  // domains, and auto-attach to ITS children so nested iframes/workers are
+  // captured too. Every step is best-effort — logging must never disrupt the
+  // live session.
   async function captureTarget(
     session: CDPSession,
     targetId: string,
   ): Promise<void> {
-    if (targetLogs.has(targetId)) return; // already wired
-    targetLogs.set(targetId, []);
+    if (targetStreams.has(targetId)) return; // already wired
+    const file = join(dir, `${targetId}.log`);
+    const stream = createWriteStream(file);
+    // Best-effort: a disk write error must not crash the process.
+    stream.on("error", () => {});
+    targetStreams.set(targetId, stream);
+    logs.push({ targetId, file });
 
     for (const method of CDP_LOG_EVENTS) {
       // `method` is a runtime-iterated CDP event name; `never` sidesteps the
@@ -184,6 +196,7 @@ export async function startRecording(
       }
       await Promise.allSettled(pending);
       // Bodies must be fetched before detach — the session can't answer after.
+      // Their records are streamed to disk as they resolve, not held here.
       await Promise.allSettled(pendingBodies);
       try {
         await client.detach();
@@ -191,15 +204,13 @@ export async function startRecording(
         // Ignore — session already detached.
       }
 
-      // Flush each target's CDP events to its own file, named by target id
-      // (trailing newline so the file is valid newline-delimited JSON even when
-      // empty).
-      const logs: CaptureLog[] = [];
-      for (const [targetId, lines] of targetLogs) {
-        const file = join(dir, `${targetId}.log`);
-        await writeFile(file, lines.length ? `${lines.join("\n")}\n` : "");
-        logs.push({ targetId, file });
-      }
+      // Close every target's log stream and wait for the last bytes to flush to
+      // disk before the files are handed off for upload.
+      await Promise.all(
+        [...targetStreams.values()].map(
+          (stream) => new Promise<void>((resolve) => stream.end(resolve)),
+        ),
+      );
 
       // Only keep frames that actually made it to disk.
       const written = frames.filter((frame) => existsSync(frame.file));
