@@ -205,10 +205,22 @@ export async function startRecording(
       }
 
       // Close every target's log stream and wait for the last bytes to flush to
-      // disk before the files are handed off for upload.
+      // disk before the files are handed off for upload. Settle on whichever of
+      // close/error comes first (and resolve immediately if a write error
+      // already destroyed the stream) so a broken stream can't hang stop() —
+      // and with it leave the session wedged in "processing".
       await Promise.all(
         [...targetStreams.values()].map(
-          (stream) => new Promise<void>((resolve) => stream.end(resolve)),
+          (stream) =>
+            new Promise<void>((resolve) => {
+              if (stream.destroyed) {
+                resolve();
+                return;
+              }
+              stream.once("close", resolve);
+              stream.once("error", () => resolve());
+              stream.end();
+            }),
         ),
       );
 
