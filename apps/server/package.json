@@ -18,6 +18,8 @@
     "@repo/types": "workspace:*",
     "dotenv": "^16.4.5",
     "express": "^5.1.0",
+    "pidtree": "^1.0.0",
+    "pidusage": "^4.0.1",
     "puppeteer": "^25.3.0",
     "ws": "^8.21.0"
   },
@@ -26,6 +28,7 @@
     "@repo/typescript-config": "workspace:*",
     "@types/express": "^5.0.3",
     "@types/node": "^22.15.3",
+    "@types/pidusage": "^2.0.5",
     "@types/ws": "^8.18.1",
     "eslint": "^9.39.1",
     "tsup": "^8.5.1",

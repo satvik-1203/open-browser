@@ -8,4 +8,14 @@ export type {
   StartBrowserResponse,
   StopBrowserResponse,
 } from "./browser";
+export type {
+  BrowserMetrics,
+  BrowserMetricsSortField,
+  GetBrowserMetricsResponse,
+  GetServerMetricsResponse,
+  ServerCpuMetrics,
+  ServerMemoryMetrics,
+  ServerMetrics,
+  SortOrder,
+} from "./metrics";
 export type { RecordingInfo, RecordingStatus } from "./recording";

@@ -10,6 +10,8 @@ export interface BrowserSession {
   id: string;
   browser: Browser;
   targetId: string;
+  /** When the session was created (epoch milliseconds). */
+  createdAt: number;
   /** Active tab recorder, present only when the session was started with `record`. */
   recorder?: Recorder;
   /** Current recording state, surfaced on get()/stop(). */

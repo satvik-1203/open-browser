@@ -83,6 +83,7 @@ export async function startBrowser(
     id,
     browser,
     targetId: targetInfo.targetId,
+    createdAt: Date.now(),
   };
 
   if (record) {

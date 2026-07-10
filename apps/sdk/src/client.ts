@@ -1,12 +1,23 @@
 import { BrowserServerError } from "@/errors";
 import type {
+  BrowserMetricsSortField,
   BrowserServerOptions,
+  GetBrowserMetricsResponse,
   GetBrowserResponse,
   GetRecordingUrlResponse,
+  GetServerMetricsResponse,
+  SortOrder,
   StartBrowserOptions,
   StartBrowserResponse,
   StopBrowserResponse,
 } from "@/types";
+
+export interface BrowserMetricsParams {
+  page?: number;
+  pageSize?: number;
+  sortBy?: BrowserMetricsSortField;
+  order?: SortOrder;
+}
 
 export class BrowserServer {
   private readonly hostUrl: string;
@@ -47,6 +58,28 @@ export class BrowserServer {
       `/browser/${encodeURIComponent(id)}/recording`,
     );
     return url;
+  }
+
+  /** Host CPU and memory utilization. */
+  async getServerMetrics(): Promise<GetServerMetricsResponse> {
+    return this.request<GetServerMetricsResponse>("/metrics");
+  }
+
+  /** Paginated, sortable resource usage for every active browser. */
+  async getBrowserMetrics(
+    params: BrowserMetricsParams = {},
+  ): Promise<GetBrowserMetricsResponse> {
+    const search = new URLSearchParams();
+    if (params.page !== undefined) search.set("page", String(params.page));
+    if (params.pageSize !== undefined)
+      search.set("pageSize", String(params.pageSize));
+    if (params.sortBy !== undefined) search.set("sortBy", params.sortBy);
+    if (params.order !== undefined) search.set("order", params.order);
+
+    const qs = search.toString();
+    return this.request<GetBrowserMetricsResponse>(
+      qs ? `/browser/metrics?${qs}` : "/browser/metrics",
+    );
   }
 
   private async request<T>(
