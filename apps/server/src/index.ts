@@ -2,6 +2,7 @@ import "dotenv/config";
 import { logger, requestLogger } from "@repo/logger";
 import express from "express";
 import { browserRouter } from "@/routes/browser/index";
+import { metricsRouter } from "@/routes/metrics/index";
 import { browserCount } from "@/services/browser/browserCount";
 import { closeAllBrowsers } from "@/services/browser/closeAllBrowsers";
 import { proxyDevtools } from "@/services/browser/proxyDevtools";
@@ -27,6 +28,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/browser", browserRouter);
+app.use("/metrics", metricsRouter);
 
 const server = app.listen(port, () => {
   logger.info("server started", { port, url: `http://localhost:${port}` });
