@@ -38,14 +38,26 @@ export async function finalizeRecording(session: BrowserSession): Promise<void> 
       contentType: "video/mp4",
     });
 
-    // Store each target's CDP log in a folder named by the session id, one
-    // file per target id (page + any out-of-process iframes/workers).
+    // Store each target's CDP log in a folder named by the session id, one file
+    // per target id (page + any out-of-process iframes/workers). Best-effort:
+    // the video is already stored, so a failed log upload must not flip the
+    // session to "failed" and hide an otherwise-good recording.
     for (const log of capture.logs) {
-      await storage.adapter.store({
-        key: recordingLogKey(session.id, log.targetId, storage.prefix),
-        body: createReadStream(log.file),
-        contentType: "application/x-ndjson",
-      });
+      try {
+        await storage.adapter.store({
+          key: recordingLogKey(session.id, log.targetId, storage.prefix),
+          body: createReadStream(log.file),
+          contentType: "application/x-ndjson",
+        });
+      } catch (logErr) {
+        const logMessage =
+          logErr instanceof Error ? logErr.message : String(logErr);
+        logger.warn("cdp log upload failed", {
+          id: session.id,
+          targetId: log.targetId,
+          error: logMessage,
+        });
+      }
     }
 
     session.recording = { status: "completed" };
