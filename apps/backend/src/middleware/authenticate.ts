@@ -4,7 +4,7 @@ import { logger } from "@repo/logger";
 import { eq } from "drizzle-orm";
 import type { NextFunction, Request, Response } from "express";
 
-import { authServerUrl } from "@/config";
+import { authServer } from "@/services/authServer";
 
 // API tokens minted by the dashboard are prefixed so we can tell them apart
 // from a forwarded user session at a glance.
@@ -47,13 +47,16 @@ export async function authenticate(
   }
 
   // 2. Forwarded user session, validated remotely by the auth server.
-  const userId = await resolveSession(req);
-  if (!userId) {
+  const session = await authServer.getSession({
+    cookie: req.headers.cookie,
+    authorization: req.headers.authorization,
+  });
+  if (!session) {
     res.status(401).json({ error: "unauthorized" });
     return;
   }
-  req.userId = userId;
-  req.auth = { type: "session", userId };
+  req.userId = session.userId;
+  req.auth = { type: "session", userId: session.userId };
   next();
 }
 
@@ -91,36 +94,4 @@ async function resolveApiToken(
     });
 
   return { userId: row.userId, tokenId: row.id };
-}
-
-/**
- * Validate a forwarded user session against the Next.js auth server. Forwards
- * the incoming cookies (and any Authorization header) to better-auth's
- * `get-session` endpoint and returns the user id it reports, or null.
- */
-async function resolveSession(req: Request): Promise<string | null> {
-  const cookie = req.headers.cookie;
-  const authorization = req.headers.authorization;
-  if (!cookie && !authorization) return null;
-
-  try {
-    const resp = await fetch(`${authServerUrl}/api/auth/get-session`, {
-      headers: {
-        ...(cookie ? { cookie } : {}),
-        ...(authorization ? { authorization } : {}),
-      },
-    });
-    if (!resp.ok) return null;
-
-    const data = (await resp.json().catch(() => null)) as {
-      user?: { id?: unknown };
-    } | null;
-    const userId = data?.user?.id;
-    return typeof userId === "string" ? userId : null;
-  } catch (error) {
-    logger.warn("session validation request failed", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
 }
