@@ -4,6 +4,7 @@
   "globalEnv": [
     "SERVER_URL",
     "PORT",
+    "SERVER_BYPASS_TOKEN",
     "PUPPETEER_NO_SANDBOX",
     "FFMPEG_PATH",
     "RECORDING_TMP_DIR",
