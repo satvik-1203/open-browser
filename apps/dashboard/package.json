@@ -11,11 +11,14 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@repo/db": "workspace:^",
     "@repo/ui": "workspace:*",
+    "better-auth": "^1.6.23",
     "next": "16.2.0",
     "open-browser-sdk": "workspace:*",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "resend": "^6.17.2"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

@@ -13,8 +13,9 @@ export default function Home() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground text-sm">
-          Built with Tailwind CSS v4 and shadcn/ui components from{" "}
-          <code className="bg-muted rounded px-1 py-0.5 text-xs">@repo/ui</code>.
+          You&apos;re signed in — this page is gated by the{" "}
+          <code className="bg-muted rounded px-1 py-0.5 text-xs">(auth)</code>{" "}
+          layout.
         </p>
       </div>
 

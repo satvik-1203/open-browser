@@ -1,0 +1,11 @@
+import path from "node:path";
+import { config } from "dotenv";
+config({ path: path.resolve(process.cwd(), "../../.env") });
+import pg from "pg";
+const u = new URL(process.env.DATABASE_URL);
+const c = new pg.Client({ host:u.hostname, port:Number(u.port||5432), user:decodeURIComponent(u.username), password:decodeURIComponent(u.password), database:decodeURIComponent(u.pathname.slice(1)), ssl:{rejectUnauthorized:true}, connectionTimeoutMillis:20000 });
+await c.connect();
+const r = await c.query('SELECT username, email FROM "user" ORDER BY created_at');
+console.log("db:", u.pathname.slice(1), "| user count:", r.rowCount);
+for (const row of r.rows) console.log("  -", row.username, row.email);
+await c.end();
