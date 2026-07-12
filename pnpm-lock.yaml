@@ -18,8 +18,124 @@ importers:
         specifier: 5.9.2
         version: 5.9.2
 
+  apps/backend:
+    dependencies:
+      '@repo/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@repo/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@types/pg@8.20.0)(kysely@0.29.3)(pg@8.22.0)
+      express:
+        specifier: ^5.1.0
+        version: 5.2.1
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@types/express':
+        specifier: ^5.0.3
+        version: 5.0.6
+      '@types/node':
+        specifier: ^22.15.3
+        version: 22.15.3
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.1(jiti@2.7.0)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.17)(tsx@4.22.4)(typescript@5.9.2)
+      tsx:
+        specifier: ^4.20.3
+        version: 4.22.4
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  apps/browser-server:
+    dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1081.0
+        version: 3.1081.0
+      '@aws-sdk/lib-storage':
+        specifier: ^3.1081.0
+        version: 3.1081.0(@aws-sdk/client-s3@3.1081.0)
+      '@aws-sdk/s3-request-presigner':
+        specifier: ^3.1081.0
+        version: 3.1081.0
+      '@repo/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      '@repo/types':
+        specifier: workspace:*
+        version: link:../../packages/types
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      express:
+        specifier: ^5.1.0
+        version: 5.2.1
+      pidtree:
+        specifier: ^1.0.0
+        version: 1.0.0
+      pidusage:
+        specifier: ^4.0.1
+        version: 4.0.1
+      puppeteer:
+        specifier: ^25.3.0
+        version: 25.3.0
+      ws:
+        specifier: ^8.21.0
+        version: 8.21.0
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@types/express':
+        specifier: ^5.0.3
+        version: 5.0.6
+      '@types/node':
+        specifier: ^22.15.3
+        version: 22.15.3
+      '@types/pidusage':
+        specifier: ^2.0.5
+        version: 2.0.5
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.1(jiti@2.7.0)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.17)(tsx@4.22.4)(typescript@5.9.2)
+      tsx:
+        specifier: ^4.20.3
+        version: 4.22.4
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
   apps/dashboard:
     dependencies:
+      '@repo/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
       '@repo/db':
         specifier: workspace:^
         version: link:../../packages/db
@@ -29,6 +145,9 @@ importers:
       better-auth:
         specifier: ^1.6.23
         version: 1.6.23(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@types/pg@8.20.0)(kysely@0.29.3)(pg@8.22.0))(next@16.2.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(pg@8.22.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@types/pg@8.20.0)(kysely@0.29.3)(pg@8.22.0)
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@19.2.0)
@@ -171,73 +290,6 @@ importers:
         specifier: 5.9.2
         version: 5.9.2
 
-  apps/server:
-    dependencies:
-      '@aws-sdk/client-s3':
-        specifier: ^3.1081.0
-        version: 3.1081.0
-      '@aws-sdk/lib-storage':
-        specifier: ^3.1081.0
-        version: 3.1081.0(@aws-sdk/client-s3@3.1081.0)
-      '@aws-sdk/s3-request-presigner':
-        specifier: ^3.1081.0
-        version: 3.1081.0
-      '@repo/logger':
-        specifier: workspace:*
-        version: link:../../packages/logger
-      '@repo/types':
-        specifier: workspace:*
-        version: link:../../packages/types
-      dotenv:
-        specifier: ^16.4.5
-        version: 16.6.1
-      express:
-        specifier: ^5.1.0
-        version: 5.2.1
-      pidtree:
-        specifier: ^1.0.0
-        version: 1.0.0
-      pidusage:
-        specifier: ^4.0.1
-        version: 4.0.1
-      puppeteer:
-        specifier: ^25.3.0
-        version: 25.3.0
-      ws:
-        specifier: ^8.21.0
-        version: 8.21.0
-    devDependencies:
-      '@repo/eslint-config':
-        specifier: workspace:*
-        version: link:../../packages/eslint-config
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/typescript-config
-      '@types/express':
-        specifier: ^5.0.3
-        version: 5.0.6
-      '@types/node':
-        specifier: ^22.15.3
-        version: 22.15.3
-      '@types/pidusage':
-        specifier: ^2.0.5
-        version: 2.0.5
-      '@types/ws':
-        specifier: ^8.18.1
-        version: 8.18.1
-      eslint:
-        specifier: ^9.39.1
-        version: 9.39.1(jiti@2.7.0)
-      tsup:
-        specifier: ^8.5.1
-        version: 8.5.1(jiti@2.7.0)(postcss@8.5.17)(tsx@4.22.4)(typescript@5.9.2)
-      tsx:
-        specifier: ^4.20.3
-        version: 4.22.4
-      typescript:
-        specifier: 5.9.2
-        version: 5.9.2
-
   apps/tests:
     dependencies:
       open-browser-sdk:
@@ -265,6 +317,27 @@ importers:
       tsx:
         specifier: ^4.20.3
         version: 4.22.4
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  packages/crypto:
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.15.3
+        version: 22.15.3
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.1(jiti@2.7.0)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.17)(tsx@4.22.4)(typescript@5.9.2)
       typescript:
         specifier: 5.9.2
         version: 5.9.2

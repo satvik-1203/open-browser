@@ -1,5 +1,5 @@
 {
-  "name": "browser-server",
+  "name": "backend",
   "version": "0.1.0",
   "type": "module",
   "private": true,
@@ -11,25 +11,18 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1081.0",
-    "@aws-sdk/lib-storage": "^3.1081.0",
-    "@aws-sdk/s3-request-presigner": "^3.1081.0",
+    "@repo/crypto": "workspace:*",
+    "@repo/db": "workspace:*",
     "@repo/logger": "workspace:*",
-    "@repo/types": "workspace:*",
     "dotenv": "^16.4.5",
-    "express": "^5.1.0",
-    "pidtree": "^1.0.0",
-    "pidusage": "^4.0.1",
-    "puppeteer": "^25.3.0",
-    "ws": "^8.21.0"
+    "drizzle-orm": "^0.45.2",
+    "express": "^5.1.0"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/express": "^5.0.3",
     "@types/node": "^22.15.3",
-    "@types/pidusage": "^2.0.5",
-    "@types/ws": "^8.18.1",
     "eslint": "^9.39.1",
     "tsup": "^8.5.1",
     "tsx": "^4.20.3",

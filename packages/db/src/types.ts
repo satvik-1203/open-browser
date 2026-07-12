@@ -1,4 +1,10 @@
-import type { account, session, user, verification } from "./schema";
+import type {
+  account,
+  apiToken,
+  session,
+  user,
+  verification,
+} from "./schema";
 
 export type User = typeof user.$inferSelect;
 export type NewUser = typeof user.$inferInsert;
@@ -11,3 +17,6 @@ export type NewAccount = typeof account.$inferInsert;
 
 export type Verification = typeof verification.$inferSelect;
 export type NewVerification = typeof verification.$inferInsert;
+
+export type ApiToken = typeof apiToken.$inferSelect;
+export type NewApiToken = typeof apiToken.$inferInsert;

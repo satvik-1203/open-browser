@@ -21,9 +21,11 @@ export interface BrowserMetricsParams {
 
 export class BrowserServer {
   private readonly hostUrl: string;
+  private readonly apiToken?: string;
 
   constructor(options: BrowserServerOptions) {
     this.hostUrl = options.hostUrl.replace(/\/$/, "");
+    this.apiToken = options.apiToken;
   }
 
   async start(
@@ -86,9 +88,13 @@ export class BrowserServer {
     path: string,
     init?: { method?: string; body?: unknown },
   ): Promise<T> {
+    const headers: Record<string, string> = {};
+    if (init?.body) headers["content-type"] = "application/json";
+    if (this.apiToken) headers.authorization = `Bearer ${this.apiToken}`;
+
     const res = await fetch(`${this.hostUrl}${path}`, {
       method: init?.method ?? "GET",
-      headers: init?.body ? { "content-type": "application/json" } : undefined,
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
       body: init?.body ? JSON.stringify(init.body) : undefined,
     });
 

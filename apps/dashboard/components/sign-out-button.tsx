@@ -14,6 +14,7 @@ export function SignOutButton() {
     <Button
       variant="outline"
       size="sm"
+      disabled={loading}
       onClick={async () => {
         setLoading(true);
         try {
@@ -24,7 +25,8 @@ export function SignOutButton() {
           setLoading(false);
         }
       }}
-      Sign out
+    >
+      {loading ? "Signing out…" : "Sign out"}
     </Button>
   );
 }
