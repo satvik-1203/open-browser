@@ -4,7 +4,8 @@
 # depends on the lockfile + package.jsons of server and its workspace deps
 # (@repo/logger, @repo/types), keeping rebuilds fast when only source changes.
 #
-# Build:  docker build -t open-browser-server .
+# Context must be the repo root (turbo prune reads the whole workspace).
+# Build:  docker build -f docker/browser.Dockerfile -t open-browser-server .
 # Run:    docker run -p 3001:3001 open-browser-server
 
 FROM node:20-bullseye-slim AS base
