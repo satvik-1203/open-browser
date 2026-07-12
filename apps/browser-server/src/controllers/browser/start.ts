@@ -9,9 +9,12 @@ import { startBrowser } from "@/services/browser/startBrowser";
 
 export async function start(req: Request, res: Response) {
   try {
-    const { id, targetId } = await startBrowser(
-      req.body as StartBrowserOptions,
-    );
+    // The backend mints the session id so it can log the row before this call;
+    // fall back to a server-generated id for direct/legacy callers.
+    const { id: providedId, ...options } = req.body as StartBrowserOptions & {
+      id?: string;
+    };
+    const { id, targetId } = await startBrowser(options, providedId);
     const { webSocketDebuggerUrl, debuggerUrl } = buildDevtoolsUrls(
       req.headers.host,
       id,

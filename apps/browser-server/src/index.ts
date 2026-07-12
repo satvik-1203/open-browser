@@ -6,6 +6,10 @@ import { browserRouter } from "@/routes/browser/index";
 import { metricsRouter } from "@/routes/metrics/index";
 import { browserCount } from "@/services/browser/browserCount";
 import { closeAllBrowsers } from "@/services/browser/closeAllBrowsers";
+import {
+  logCallbackStatus,
+  notifyServerStarted,
+} from "@/services/callback/notifyBackend";
 import { proxyDevtools } from "@/services/browser/proxyDevtools";
 import { resolveDevtoolsUpstream } from "@/services/browser/resolveDevtoolsUpstream";
 import { isStorageConfigured } from "@/services/storage/index";
@@ -37,6 +41,10 @@ const server = app.listen(port, () => {
   logger.info("server started", { port, url: `http://localhost:${port}` });
   logger.info("recording storage", { configured: recordingEnabled });
   logBypassTokenStatus();
+  logCallbackStatus();
+  // A fresh process has no live sessions — tell the backend to reconcile any it
+  // still has marked running (orphaned by this restart) to `failed`.
+  notifyServerStarted();
 });
 
 server.on("upgrade", (req, socket, head) => {

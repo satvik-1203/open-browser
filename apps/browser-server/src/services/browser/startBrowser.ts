@@ -7,13 +7,14 @@ import {
   LocalStorageRequiresUrlError,
   RecordingNotConfiguredError,
 } from "@/services/browser/errors";
-import { finalizeRecording } from "@/services/browser/finalizeRecording";
+import { handleSessionEnd } from "@/services/browser/handleSessionEnd";
 import type { StartBrowserResult } from "@/services/browser/types";
 import { startRecording } from "@/services/recording/index";
 import { isStorageConfigured } from "@/services/storage/index";
 
 export async function startBrowser(
   options: StartBrowserOptions,
+  id: string = randomUUID(),
 ): Promise<StartBrowserResult> {
   const {
     headless = true,
@@ -78,7 +79,6 @@ export async function startBrowser(
   const { targetInfo } = await cdpSession.send("Target.getTargetInfo");
   await cdpSession.detach();
 
-  const id = randomUUID();
   const session: BrowserSession = {
     id,
     browser,
@@ -89,12 +89,14 @@ export async function startBrowser(
   if (record) {
     session.recorder = await startRecording(page);
     session.recording = { status: "recording" };
-    // Best-effort upload if the browser dies unexpectedly. No-op on the normal
-    // stop path, where the recorder has already been finalized before close().
-    browser.once("disconnected", () => {
-      void finalizeRecording(session);
-    });
   }
+
+  // Settle the session on any disconnect — a crash (reported to the backend as
+  // `failed`) or the normal stop path (already handled by stopBrowser, so this
+  // no-ops). Also finalizes a pending recording if the browser died unexpectedly.
+  browser.once("disconnected", () => {
+    void handleSessionEnd(session);
+  });
 
   sessions.set(id, session);
   return {

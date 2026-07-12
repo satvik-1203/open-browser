@@ -139,6 +139,12 @@ importers:
       '@repo/db':
         specifier: workspace:^
         version: link:../../packages/db
+      '@repo/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      '@repo/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -344,6 +350,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@repo/types':
+        specifier: workspace:*
+        version: link:../types
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1

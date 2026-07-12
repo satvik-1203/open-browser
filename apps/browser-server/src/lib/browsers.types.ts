@@ -16,4 +16,7 @@ export interface BrowserSession {
   recorder?: Recorder;
   /** Current recording state, surfaced on get()/stop(). */
   recording?: RecordingInfo;
+  /** Guards against double end-handling when an explicit teardown (stop /
+   * shutdown) and the browser's `disconnected` event race. */
+  endHandled?: boolean;
 }
