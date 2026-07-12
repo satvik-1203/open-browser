@@ -14,14 +14,16 @@ export function SignOutButton() {
     <Button
       variant="outline"
       size="sm"
-      disabled={loading}
       onClick={async () => {
         setLoading(true);
-        await signOut();
-        router.push("/sign-in");
-        router.refresh();
+        try {
+          await signOut();
+          router.push("/sign-in");
+          router.refresh();
+        } catch {
+          setLoading(false);
+        }
       }}
-    >
       Sign out
     </Button>
   );
