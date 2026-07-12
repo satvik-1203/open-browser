@@ -9,7 +9,9 @@ Turborepo + pnpm workspaces.
 - `apps/dashboard` — Next.js app (auth + product UI). Tailwind v4 + shadcn/ui.
 - `apps/homepage` — marketing site (plain CSS, warm "paper" design system).
 - `apps/debug` — internal test pages for the browser server API.
-- `apps/server`, `apps/sdk`, `apps/tests` — browser server, SDK, e2e tests.
+- `apps/browser-server`, `apps/sdk`, `apps/tests` — browser automation server, SDK, e2e tests.
+- `apps/backend` — Express API gateway in front of `apps/browser-server`: authenticates
+  callers (API token or forwarded user session → `req.userId`) and proxies the REST surface.
 - `packages/ui` (`@repo/ui`) — shared shadcn component library + the Tailwind theme.
 - `packages/db` (`@repo/db`) — drizzle schema + client (Postgres). Holds the better-auth tables.
 - `packages/types`, `packages/logger`, `packages/eslint-config`, `packages/typescript-config`.

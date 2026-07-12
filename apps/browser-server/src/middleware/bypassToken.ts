@@ -4,7 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 
 // Name of the header clients must send, and the env var holding the expected
 // value. Express lower-cases all incoming header keys.
-const HEADER = "server-bypass-token";
+const HEADER = "browser-server-bypass-token";
 
 function tokensMatch(provided: string, expected: string): boolean {
   const a = Buffer.from(provided);
@@ -15,16 +15,16 @@ function tokensMatch(provided: string, expected: string): boolean {
 
 /**
  * Gate every request behind a shared secret. Clients must send the
- * `server-bypass-token` header matching `SERVER_BYPASS_TOKEN` from the
- * environment. Anything else is answered with a 404 so the server does not
- * reveal that a route exists at all.
+ * `browser-server-bypass-token` header matching `BROWSER_SERVER_BYPASS_TOKEN`
+ * from the environment. Anything else is answered with a 404 so the server does
+ * not reveal that a route exists at all.
  *
- * When `SERVER_BYPASS_TOKEN` is unset the gate is disabled (all requests pass)
+ * When `BROWSER_SERVER_BYPASS_TOKEN` is unset the gate is disabled (all requests pass)
  * and a warning is logged at startup — this keeps local dev and tests working
  * without a token. Set the token in every deployed environment.
  */
 export function bypassToken(req: Request, res: Response, next: NextFunction) {
-  const expected = process.env.SERVER_BYPASS_TOKEN;
+  const expected = process.env.BROWSER_SERVER_BYPASS_TOKEN;
 
   if (!expected) {
     next();
@@ -46,9 +46,9 @@ export function bypassToken(req: Request, res: Response, next: NextFunction) {
  * server reports recording storage configuration.
  */
 export function logBypassTokenStatus() {
-  if (!process.env.SERVER_BYPASS_TOKEN) {
+  if (!process.env.BROWSER_SERVER_BYPASS_TOKEN) {
     logger.warn(
-      "SERVER_BYPASS_TOKEN is not set — request authentication is DISABLED; all requests are allowed",
+      "BROWSER_SERVER_BYPASS_TOKEN is not set — request authentication is DISABLED; all requests are allowed",
     );
   }
 }

@@ -6,7 +6,6 @@ import { username } from "better-auth/plugins";
 
 import { sendPasswordResetEmail, sendVerificationEmail } from "./email";
 
-export const auth = betterAuth({
 if (!process.env.BETTER_AUTH_SECRET) {
   throw new Error("BETTER_AUTH_SECRET is not set");
 }

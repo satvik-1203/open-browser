@@ -11,9 +11,11 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@repo/crypto": "workspace:*",
     "@repo/db": "workspace:^",
     "@repo/ui": "workspace:*",
     "better-auth": "^1.6.23",
+    "drizzle-orm": "^0.45.2",
     "lucide-react": "^0.469.0",
     "next": "16.2.0",
     "open-browser-sdk": "workspace:*",
