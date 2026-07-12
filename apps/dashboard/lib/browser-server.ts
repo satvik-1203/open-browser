@@ -17,9 +17,14 @@ const browserServerUrl = (
   process.env.BROWSER_SERVER_URL ?? "http://localhost:3001"
 ).replace(/\/$/, "");
 const bypassToken = process.env.BROWSER_SERVER_BYPASS_TOKEN;
-const publicHost = new URL(
+const publicUrl = new URL(
   process.env.BROWSER_SERVER_PUBLIC_URL ?? browserServerUrl,
-).host;
+);
+const publicHost = publicUrl.host;
+// The browser server echoes this into the CDP/ws URLs it returns, so an https
+// public address yields wss:// URLs. Sent explicitly (not left to a proxy) so
+// the scheme is deterministic.
+const publicProto = publicUrl.protocol === "https:" ? "https" : "http";
 
 const METHODS_WITH_BODY = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -48,7 +53,10 @@ function request<T>(
         ? Buffer.from(JSON.stringify(body))
         : undefined;
 
-    const headers: Record<string, string> = { host: publicHost };
+    const headers: Record<string, string> = {
+      host: publicHost,
+      "x-forwarded-proto": publicProto,
+    };
     if (bypassToken) headers["browser-server-bypass-token"] = bypassToken;
     if (payload) {
       headers["content-type"] = "application/json";

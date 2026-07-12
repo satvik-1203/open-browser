@@ -53,7 +53,7 @@ WORKDIR /app
 #     sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 # Do NOT paper over it with --no-sandbox or --cap-add=SYS_ADMIN.
 ENV NODE_ENV=production \
-    PORT=3001 \
+    PORT=8080 \
     HOME=/home/browser \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
@@ -77,10 +77,10 @@ COPY --from=builder --chown=browser:browsers /app .
 USER browser
 WORKDIR /app/apps/browser-server
 
-EXPOSE 3001
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "fetch('http://localhost:'+(process.env.PORT||3001)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://localhost:'+(process.env.PORT||8080)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/index.js"]

@@ -1,6 +1,7 @@
 import type { StartBrowserOptions, StartBrowserResponse } from "@repo/types";
 import type { Request, Response } from "express";
 import { buildDevtoolsUrls } from "@/lib/devtoolsUrls";
+import { isSecureRequest } from "@/lib/requestProtocol";
 import {
   LocalStorageRequiresUrlError,
   RecordingNotConfiguredError,
@@ -19,6 +20,7 @@ export async function start(req: Request, res: Response) {
       req.headers.host,
       id,
       targetId,
+      isSecureRequest(req),
     );
 
     const response: StartBrowserResponse = { id, webSocketDebuggerUrl, debuggerUrl };
