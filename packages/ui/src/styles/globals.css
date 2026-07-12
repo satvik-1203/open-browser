@@ -7,73 +7,91 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+  Warm "paper" palette, ported from the marketing homepage
+  (apps/homepage/app/globals.css) so every shadcn component shares it.
+  Light is the primary aesthetic; dark is a warm-toned counterpart.
+*/
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.21 0.006 285.885);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.21 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.705 0.015 286.067);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: oklch(0.21 0.006 285.885);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.705 0.015 286.067);
+  color-scheme: light;
+
+  /* Rounding — intentionally tight / rectangular (see root CLAUDE.md). */
+  --radius: 0.375rem;
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  --background: #f4efe4;
+  --foreground: #221e17;
+  --card: #fbf8f1;
+  --card-foreground: #221e17;
+  --popover: #fbf8f1;
+  --popover-foreground: #221e17;
+  --primary: #2f6fe0;
+  --primary-foreground: #ffffff;
+  --secondary: #efe9db;
+  --secondary-foreground: #221e17;
+  --muted: #efe9db;
+  --muted-foreground: #6b6357;
+  --accent: #ece5d5;
+  --accent-foreground: #221e17;
+  --destructive: #c0402e;
+  --border: rgba(45, 38, 26, 0.14);
+  --input: rgba(45, 38, 26, 0.2);
+  --ring: #2f6fe0;
+  --chart-1: #2f6fe0;
+  --chart-2: #2f7d32;
+  --chart-3: #b26b00;
+  --chart-4: #a626a4;
+  --chart-5: #b0810b;
+  --sidebar: #efe9db;
+  --sidebar-foreground: #221e17;
+  --sidebar-primary: #2f6fe0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ece5d5;
+  --sidebar-accent-foreground: #221e17;
+  --sidebar-border: rgba(45, 38, 26, 0.14);
+  --sidebar-ring: #2f6fe0;
 }
 
 .dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.92 0.004 286.32);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.552 0.016 285.938);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.552 0.016 285.938);
+  color-scheme: dark;
+
+  --background: #1c1813;
+  --foreground: #ece6da;
+  --card: #241f18;
+  --card-foreground: #ece6da;
+  --popover: #241f18;
+  --popover-foreground: #ece6da;
+  --primary: #4f86e8;
+  --primary-foreground: #0f0d0a;
+  --secondary: #2c261d;
+  --secondary-foreground: #ece6da;
+  --muted: #2c261d;
+  --muted-foreground: #a89e8d;
+  --accent: #322b21;
+  --accent-foreground: #ece6da;
+  --destructive: #e5675a;
+  --border: rgba(236, 230, 218, 0.12);
+  --input: rgba(236, 230, 218, 0.16);
+  --ring: #4f86e8;
+  --chart-1: #4f86e8;
+  --chart-2: #5aa25d;
+  --chart-3: #d08a2c;
+  --chart-4: #c256c0;
+  --chart-5: #cba53a;
+  --sidebar: #241f18;
+  --sidebar-foreground: #ece6da;
+  --sidebar-primary: #4f86e8;
+  --sidebar-primary-foreground: #0f0d0a;
+  --sidebar-accent: #322b21;
+  --sidebar-accent-foreground: #ece6da;
+  --sidebar-border: rgba(236, 230, 218, 0.12);
+  --sidebar-ring: #4f86e8;
 }
 
 @theme inline {
@@ -81,6 +99,8 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -120,5 +140,27 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+
+  /*
+    Paper grain — inline SVG fractal noise, ported from the homepage. A fixed,
+    non-interactive film above every surface so the whole app shares the texture.
+  */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0.5;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+    background-size: 140px 140px;
+  }
+
+  .dark body::after {
+    opacity: 0.08;
+    mix-blend-mode: overlay;
   }
 }

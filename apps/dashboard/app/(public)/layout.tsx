@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 
 /**
- * Public layout for the auth forms. If the visitor is already signed in, send
- * them to the dashboard instead of showing sign-in / sign-up.
+ * Public auth gate. Already-signed-in visitors are sent to the dashboard.
+ * Each page renders its own <AuthShell> with a page-specific banner.
  */
 export default async function PublicLayout({
   children,
@@ -18,9 +18,5 @@ export default async function PublicLayout({
     redirect("/");
   }
 
-  return (
-    <div className="flex min-h-svh items-center justify-center p-6">
-      {children}
-    </div>
-  );
+  return children;
 }
