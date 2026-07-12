@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000 --turbo",
+    "dev": "PORT=$(grep '^PORT=' .env.local 2>/dev/null | cut -d= -f2); next dev --turbopack -p ${PORT:-3000}",
     "build": "next build",
     "start": "next start",
     "lint": "eslint --max-warnings 0",
