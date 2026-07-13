@@ -78,6 +78,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN groupadd --gid 1001 browsers \
     && useradd --uid 1001 --gid browsers --create-home --shell /usr/sbin/nologin browser
 
+# Entrypoint guarantees an X display for headful Chrome regardless of the
+# command run — so overriding CMD (e.g. a Railway "Custom Start Command") can't
+# silently drop xvfb-run and break `POST /browser/start`.
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod 0755 /usr/local/bin/entrypoint.sh
+
 COPY --from=builder --chown=browser:browsers /app .
 
 USER browser
@@ -88,8 +94,9 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://localhost:'+(process.env.PORT||8080)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-ENTRYPOINT ["dumb-init", "--"]
-# Run under a virtual X display so headful Chrome has somewhere to render.
-# `--auto-servernum` picks a free display and shares it across all Chrome
-# instances this server spawns (one Xvfb, not one per session).
-CMD ["xvfb-run", "--auto-servernum", "--server-args=-screen 0 1920x1080x24 -nolisten tcp", "node", "dist/index.js"]
+# dumb-init reaps zombies / forwards signals as PID 1; entrypoint.sh then wraps
+# the command in a virtual X display (see entrypoint.sh). Because the Xvfb wrap
+# lives in ENTRYPOINT — which platform start-command overrides preserve — a
+# custom CMD like `node dist/index.js` still gets a DISPLAY.
+ENTRYPOINT ["dumb-init", "--", "/usr/local/bin/entrypoint.sh"]
+CMD ["node", "dist/index.js"]
