@@ -74,7 +74,12 @@ export async function encodeRecording(capture: Capture): Promise<string> {
     "0",
     "-i",
     "frames.txt",
-    "-fps_mode",
+    // `-vsync vfr` (not `-fps_mode vfr`): the concat manifest sets per-frame
+    // durations, so the encoder must keep variable frame timing. `-fps_mode` only
+    // exists in ffmpeg ≥5.1, but the runtime image pins Debian bullseye (ffmpeg
+    // 4.3.x) — there `-fps_mode` errors out with "Unrecognized option". `-vsync
+    // vfr` is the older spelling and works across 4.3 → current.
+    "-vsync",
     "vfr",
     "-c:v",
     "libx264",
