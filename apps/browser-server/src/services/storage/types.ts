@@ -34,6 +34,12 @@ export interface StorageAdapter {
   ): Promise<string>;
   /** Whether an object exists at `key`. */
   exists(key: string): Promise<boolean>;
+  /**
+   * Open a readable stream over an object's bytes so callers can pipe/filter it
+   * without buffering the whole object into the heap. Rejects if the object is
+   * missing (the caller decides whether that's a 404).
+   */
+  getStream(key: string): Promise<Readable>;
 }
 
 /** The storage backend this server resolved from its environment. */

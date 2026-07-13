@@ -1,3 +1,5 @@
+export { buildEvents } from "./buildEvents";
+export type { BodyArtifact, BuildEventsResult } from "./buildEvents";
 export { cleanupRecording } from "./cleanupRecording";
 export { encodeRecording, NoFramesError } from "./encodeRecording";
 export { startRecording } from "./startRecording";

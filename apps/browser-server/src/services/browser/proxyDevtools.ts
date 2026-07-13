@@ -9,6 +9,7 @@ export function proxyDevtools(
   req: IncomingMessage,
   socket: Duplex,
   head: Buffer,
+  onClientFrame?: (raw: string) => void,
 ): void {
   wss.handleUpgrade(req, socket, head, (client) => {
     const upstream = new WebSocket(upstreamUrl);
@@ -20,6 +21,16 @@ export function proxyDevtools(
     };
 
     client.on("message", (data, isBinary) => {
+      // Tee the client→browser command frames (the actions the automation
+      // drives) to the recorder before forwarding. Best-effort and text-only:
+      // CDP frames are JSON text, and a failing tap must never disrupt the proxy.
+      if (onClientFrame && !isBinary) {
+        try {
+          onClientFrame(data.toString());
+        } catch {
+          // Ignore — recording a frame must not break the live session.
+        }
+      }
       if (upstream.readyState === WebSocket.OPEN)
         upstream.send(data, { binary: isBinary });
       else pending.push({ data, isBinary });

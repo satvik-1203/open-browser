@@ -27,3 +27,12 @@ export type {
   SortOrder,
 } from "./metrics";
 export type { RecordingInfo, RecordingStatus } from "./recording";
+export type {
+  ActionRecordingEvent,
+  ConsoleRecordingEvent,
+  GetRecordingEventsResponse,
+  NavigationRecordingEvent,
+  NetworkRecordingEvent,
+  RecordingEvent,
+  RecordingEventKind,
+} from "./recordingEvents";

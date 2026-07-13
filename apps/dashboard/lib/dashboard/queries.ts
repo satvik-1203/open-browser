@@ -26,6 +26,7 @@ export const qk = {
   sessionSearch: (id: string) => ["session-search", id] as const,
   recordings: (pageSize: number) => ["recordings", pageSize] as const,
   recordingUrl: (id: string) => ["recording-url", id] as const,
+  recordingEvents: (id: string) => ["recording-events", id] as const,
   tokens: ["tokens"] as const,
 };
 
@@ -135,6 +136,21 @@ export function useRecordingUrl(id: string, enabled: boolean) {
     queryFn: () => dashboardApi.getRecordingUrl(id),
     enabled,
     // Storage can lag the "completed" flag by a beat; give it a few tries.
+    retry: 5,
+    retryDelay: 1500,
+  });
+}
+
+/**
+ * Load a recording's events (network/console/action/navigation) for the
+ * timeline, network, and console tabs. Fetched once per completed recording;
+ * the events object can lag the "completed" flag, so retry a few times.
+ */
+export function useRecordingEvents(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: qk.recordingEvents(id),
+    queryFn: () => dashboardApi.getRecordingEvents(id),
+    enabled,
     retry: 5,
     retryDelay: 1500,
   });

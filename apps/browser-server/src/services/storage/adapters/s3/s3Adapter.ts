@@ -1,3 +1,4 @@
+import type { Readable } from "node:stream";
 import {
   GetObjectCommand,
   HeadObjectCommand,
@@ -59,6 +60,13 @@ export function createS3Adapter(config: S3Config): StorageAdapter {
         }),
         { expiresIn: expiresInSeconds },
       );
+    },
+    async getStream(key: string): Promise<Readable> {
+      const res = await client.send(
+        new GetObjectCommand({ Bucket: config.bucket, Key: key }),
+      );
+      // In Node the SDK returns the body as a Readable stream.
+      return res.Body as Readable;
     },
     async exists(key: string): Promise<boolean> {
       try {

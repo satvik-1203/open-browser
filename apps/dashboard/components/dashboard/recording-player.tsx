@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { dashboardApi } from "@/lib/dashboard/api";
 import { downloadFile } from "@/lib/dashboard/download";
 import { useRecordingUrl, useSessionRecord } from "@/lib/dashboard/queries";
+import { RecordingActivity } from "@/components/dashboard/recording-activity";
 
 // `undefined` = still loading the session; `null` = session/recording not found.
 type Status = RecordingStatus | null | undefined;
@@ -95,6 +96,8 @@ export function RecordingPlayer({ id }: { id: string }) {
       </div>
 
       <Content status={status} url={url} />
+
+      <RecordingActivity id={id} enabled={isCompleted} />
     </div>
   );
 }

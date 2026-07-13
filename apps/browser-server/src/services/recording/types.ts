@@ -29,6 +29,12 @@ export interface Capture {
    * target is always present (its file may be empty).
    */
   logs: CaptureLog[];
+  /**
+   * Newline-delimited JSON log of the browser actions the client drove over CDP
+   * (clicks, scrolls, navigations, evaluates, …), captured off the devtools
+   * proxy. Absent if no actions flowed through the proxy while recording.
+   */
+  actionsLog?: string;
 }
 
 /**
@@ -37,6 +43,12 @@ export interface Capture {
  * so far rather than throwing.
  */
 export interface Recorder {
+  /**
+   * Record one browser action driven by the client over CDP. Called from the
+   * devtools proxy with the client→browser command frame; best-effort and
+   * safe to call after `stop()` (a late frame simply no-ops).
+   */
+  recordAction(method: string, params: unknown): void;
   stop(): Promise<Capture>;
 }
 

@@ -2,6 +2,8 @@ import type {
   BrowserSessionRecord,
   GetBrowserResponse,
   GetRecordingUrlResponse,
+  RecordingEvent,
+  RecordingEventKind,
   StartBrowserOptions,
   StartBrowserResponse,
 } from "./types";
@@ -95,5 +97,34 @@ export const dashboardApi = {
     return call<GetRecordingUrlResponse>(
       `/browser/${encodeURIComponent(id)}/recording${suffix}`,
     );
+  },
+  /**
+   * Load a recording's events (ndjson) and parse them into rows. Optionally
+   * filter by kind server-side. A 404 (no events object yet) yields an empty
+   * list rather than throwing, so a completed-but-logless recording renders
+   * cleanly.
+   */
+  async getRecordingEvents(
+    id: string,
+    kinds?: RecordingEventKind[],
+  ): Promise<RecordingEvent[]> {
+    const suffix = kinds?.length ? `?kind=${kinds.join(",")}` : "";
+    const res = await fetch(
+      `/browser/${encodeURIComponent(id)}/recording/events${suffix}`,
+    );
+    if (res.status === 404) return [];
+    if (!res.ok) {
+      const body = safeParse(await res.text()) as { error?: string } | undefined;
+      throw new Error(body?.error ?? `request failed (${res.status})`);
+    }
+    const text = await res.text();
+    return text
+      .split("\n")
+      .filter((line) => line.length > 0)
+      .map((line) => JSON.parse(line) as RecordingEvent);
+  },
+  /** Same-origin URL for one captured response body (fetched on demand). */
+  recordingBodyUrl(id: string, requestId: string): string {
+    return `/browser/${encodeURIComponent(id)}/recording/bodies/${encodeURIComponent(requestId)}`;
   },
 };
