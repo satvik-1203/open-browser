@@ -6,14 +6,27 @@ Guidance for working in this repo. Keep changes consistent with the conventions 
 
 Turborepo + pnpm workspaces.
 
-- `apps/dashboard` — Next.js app (auth + product UI). Tailwind v4 + shadcn/ui.
+- `apps/dashboard` — Next.js app (auth + product UI) AND the public browser API.
+  Tailwind v4 + shadcn/ui. Route handlers own the browser lifecycle
+  (`/browser/start|stop`, `GET /browser`, `GET /browser/:id[/recording]`) and log every
+  session to the `browser_session` table, ownership-scoped by `userId`. Auth is in-process
+  (better-auth session or `ob_` API token via `lib/api-auth.ts`) — no loopback HTTP. It
+  drives `apps/browser-server` over its bypass-token REST surface (`lib/browser-server.ts`,
+  raw `node:http` so it can override `Host`). Server/browser **metrics are NOT exposed** on
+  the per-user API — the browser server's metrics list every session across all users
+  (leaking ids that grant tokenless CDP access), so it stays operator-only (reached
+  directly on the browser server with the bypass token). The browser server posts back to secret-gated `/internal/*` callbacks
+  (session-ended, boot reconcile) so the DB settles even on crashes/restarts. Returned CDP
+  ws URLs point straight at the browser server — clients connect CDP directly, no token.
 - `apps/homepage` — marketing site (plain CSS, warm "paper" design system).
 - `apps/debug` — internal test pages for the browser server API.
 - `apps/browser-server`, `apps/sdk`, `apps/tests` — browser automation server, SDK, e2e tests.
-- `apps/backend` — Express API gateway in front of `apps/browser-server`: authenticates
-  callers (API token or forwarded user session → `req.userId`) and proxies the REST surface.
+- `apps/backend` — Express gateway skeleton in front of `apps/browser-server` (authenticate
+  + proxy). Currently unused by the product path (the dashboard is the API); kept as a
+  place to grow a dedicated API service later.
 - `packages/ui` (`@repo/ui`) — shared shadcn component library + the Tailwind theme.
-- `packages/db` (`@repo/db`) — drizzle schema + client (Postgres). Holds the better-auth tables.
+- `packages/db` (`@repo/db`) — drizzle schema + client (Postgres). Holds the better-auth
+  tables plus `browser_session` (session log; `status` is typed text, not a pg enum).
 - `packages/types`, `packages/logger`, `packages/eslint-config`, `packages/typescript-config`.
 
 ## Styling conventions

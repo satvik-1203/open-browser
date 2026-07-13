@@ -1,6 +1,7 @@
 import type { GetBrowserResponse } from "@repo/types";
 import type { Request, Response } from "express";
 import { buildDevtoolsUrls } from "@/lib/devtoolsUrls";
+import { isSecureRequest } from "@/lib/requestProtocol";
 import { getBrowserInfo } from "@/services/browser/getBrowserInfo";
 
 export function get(req: Request, res: Response) {
@@ -16,6 +17,7 @@ export function get(req: Request, res: Response) {
     req.headers.host,
     info.id,
     info.targetId,
+    isSecureRequest(req),
   );
 
   const response: GetBrowserResponse = {

@@ -13,6 +13,8 @@
   "dependencies": {
     "@repo/crypto": "workspace:*",
     "@repo/db": "workspace:^",
+    "@repo/logger": "workspace:*",
+    "@repo/types": "workspace:*",
     "@repo/ui": "workspace:*",
     "better-auth": "^1.6.23",
     "drizzle-orm": "^0.45.2",

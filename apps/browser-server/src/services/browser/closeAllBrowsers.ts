@@ -1,12 +1,15 @@
 import { sessions } from "@/lib/browsers";
-import { finalizeRecording } from "@/services/browser/finalizeRecording";
+import { handleSessionEnd } from "@/services/browser/handleSessionEnd";
 
 export async function closeAllBrowsers(): Promise<void> {
   await Promise.all(
     [...sessions.values()].map(async (session) => {
-      if (session.recorder) {
-        await finalizeRecording(session).catch(() => {});
-      }
+      // The server is going down, so report each as `server-error` and flush the
+      // callback (await delivery) before the process exits.
+      await handleSessionEnd(session, {
+        status: "server-error",
+        flush: true,
+      }).catch(() => {});
       await session.browser.close().catch(() => {});
     }),
   );

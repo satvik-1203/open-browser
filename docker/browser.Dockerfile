@@ -1,22 +1,23 @@
 # syntax=docker/dockerfile:1.7
 #
-# Builds and runs apps/server. Uses `turbo prune` so the install layer only
-# depends on the lockfile + package.jsons of server and its workspace deps
-# (@repo/logger, @repo/types), keeping rebuilds fast when only source changes.
+# Builds and runs apps/browser-server. Uses `turbo prune` so the install layer
+# only depends on the lockfile + package.jsons of browser-server and its
+# workspace deps (@repo/logger, @repo/types), keeping rebuilds fast when only
+# source changes.
 #
 # Context must be the repo root (turbo prune reads the whole workspace).
-# Build:  docker build -f docker/browser.Dockerfile -t open-browser-server .
-# Run:    docker run -p 3001:3001 open-browser-server
+# Build:  docker build -f docker/browser.Dockerfile -t browser-server .
+# Run:    docker run -p 3001:3001 browser-server
 
 FROM node:20-bullseye-slim AS base
 RUN corepack enable
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 
-# ---- prune: compute the minimal subset of the monorepo needed for `server`
+# ---- prune: compute the minimal subset of the monorepo needed for `browser-server`
 FROM base AS pruner
 WORKDIR /app
 COPY . .
-RUN pnpm dlx turbo@2.10.1 prune server --docker
+RUN pnpm dlx turbo@2.10.1 prune browser-server --docker
 
 # ---- install + build
 FROM base AS builder
@@ -26,7 +27,7 @@ COPY --from=pruner /app/out/json/ .
 RUN pnpm install --frozen-lockfile
 
 COPY --from=pruner /app/out/full/ .
-RUN pnpm turbo run build --filter=server
+RUN pnpm turbo run build --filter=browser-server
 
 RUN pnpm prune --prod
 
@@ -52,7 +53,7 @@ WORKDIR /app
 #     sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 # Do NOT paper over it with --no-sandbox or --cap-add=SYS_ADMIN.
 ENV NODE_ENV=production \
-    PORT=3001 \
+    PORT=8080 \
     HOME=/home/browser \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
@@ -74,12 +75,12 @@ RUN groupadd --gid 1001 browsers \
 COPY --from=builder --chown=browser:browsers /app .
 
 USER browser
-WORKDIR /app/apps/server
+WORKDIR /app/apps/browser-server
 
-EXPOSE 3001
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "fetch('http://localhost:'+(process.env.PORT||3001)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://localhost:'+(process.env.PORT||8080)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/index.js"]

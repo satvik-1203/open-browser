@@ -6,6 +6,10 @@ import { browserRouter } from "@/routes/browser/index";
 import { metricsRouter } from "@/routes/metrics/index";
 import { browserCount } from "@/services/browser/browserCount";
 import { closeAllBrowsers } from "@/services/browser/closeAllBrowsers";
+import {
+  logCallbackStatus,
+  notifyServerStarted,
+} from "@/services/callback/notifyBackend";
 import { proxyDevtools } from "@/services/browser/proxyDevtools";
 import { resolveDevtoolsUpstream } from "@/services/browser/resolveDevtoolsUpstream";
 import { isStorageConfigured } from "@/services/storage/index";
@@ -18,16 +22,19 @@ const port = Number(process.env.PORT) || 3001;
 const recordingEnabled = isStorageConfigured();
 
 app.use(requestLogger);
-// Gate every route behind the shared bypass token before any handler runs.
+
+// Health check stays open — before the token gate — so load balancers and the
+// orchestrating API can probe liveness without the bypass token.
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok" });
+});
+
+// Gate every remaining route behind the shared bypass token before any handler runs.
 app.use(bypassToken);
 app.use(express.json());
 
 app.get("/", (_req, res) => {
   res.json({ message: "Hello from Express!" });
-});
-
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok" });
 });
 
 app.use("/browser", browserRouter);
@@ -37,6 +44,10 @@ const server = app.listen(port, () => {
   logger.info("server started", { port, url: `http://localhost:${port}` });
   logger.info("recording storage", { configured: recordingEnabled });
   logBypassTokenStatus();
+  logCallbackStatus();
+  // A fresh process has no live sessions — tell the backend to reconcile any it
+  // still has marked running (orphaned by this restart) to `failed`.
+  notifyServerStarted();
 });
 
 server.on("upgrade", (req, socket, head) => {
