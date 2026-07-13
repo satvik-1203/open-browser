@@ -34,6 +34,13 @@ export interface BrowserServerResult<T> {
   body: T | { error?: string };
 }
 
+export interface BrowserServerRawResult {
+  status: number;
+  /** Raw response bytes (unparsed) — for streamed/non-JSON bodies. */
+  body: Buffer;
+  contentType: string;
+}
+
 /**
  * Low-level request to the browser server. Uses the raw http/https client (not
  * fetch) so we can override the outgoing `Host` header, and injects the shared
@@ -87,6 +94,42 @@ function request<T>(
   });
 }
 
+/**
+ * Like `request`, but returns the raw response bytes instead of parsing JSON —
+ * for the recording event stream (ndjson) and response bodies, which the
+ * dashboard proxies straight through to the browser rather than reshaping.
+ */
+function requestRaw(
+  method: string,
+  path: string,
+): Promise<BrowserServerRawResult> {
+  return new Promise((resolve, reject) => {
+    const target = new URL(path, browserServerUrl);
+    const client = target.protocol === "https:" ? https : http;
+
+    const headers: Record<string, string> = {
+      host: publicHost,
+      "x-forwarded-proto": publicProto,
+    };
+    if (bypassToken) headers["browser-server-bypass-token"] = bypassToken;
+
+    const req = client.request(target, { method, headers }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk: Buffer) => chunks.push(chunk));
+      res.on("end", () => {
+        resolve({
+          status: res.statusCode ?? 502,
+          body: Buffer.concat(chunks),
+          contentType: res.headers["content-type"] ?? "application/octet-stream",
+        });
+      });
+    });
+
+    req.on("error", reject);
+    req.end();
+  });
+}
+
 /** Typed client for the browser server's REST surface. */
 export const browserServer = {
   start(options: StartBrowserOptions & { id: string }) {
@@ -106,6 +149,19 @@ export const browserServer = {
     return request<GetRecordingUrlResponse>(
       "GET",
       `/browser/${encodeURIComponent(id)}/recording${suffix}`,
+    );
+  },
+  getRecordingEvents(id: string, kind?: string) {
+    const suffix = kind ? `?kind=${encodeURIComponent(kind)}` : "";
+    return requestRaw(
+      "GET",
+      `/browser/${encodeURIComponent(id)}/recording/events${suffix}`,
+    );
+  },
+  getRecordingBody(id: string, requestId: string) {
+    return requestRaw(
+      "GET",
+      `/browser/${encodeURIComponent(id)}/recording/bodies/${encodeURIComponent(requestId)}`,
     );
   },
 };

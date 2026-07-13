@@ -12,6 +12,8 @@ import {
 } from "@/services/callback/notifyBackend";
 import { proxyDevtools } from "@/services/browser/proxyDevtools";
 import { resolveDevtoolsUpstream } from "@/services/browser/resolveDevtoolsUpstream";
+import { sessions } from "@/lib/browsers";
+import { parseActionFrame } from "@/services/recording/actions";
 import { isStorageConfigured } from "@/services/storage/index";
 
 const app = express();
@@ -83,7 +85,17 @@ server.on("upgrade", (req, socket, head) => {
   }
 
   logger.info("devtools upgrade proxied", { id, targetId, kind });
-  proxyDevtools(upstream, req, socket, head);
+  // When this session is being recorded, tee the client's CDP command frames to
+  // the recorder so browser actions (clicks, scrolls, navigations, …) land in
+  // the recording alongside the network/console events.
+  const recorder = sessions.get(id)?.recorder;
+  const onClientFrame = recorder
+    ? (raw: string) => {
+        const action = parseActionFrame(raw);
+        if (action) recorder.recordAction(action.method, action.params);
+      }
+    : undefined;
+  proxyDevtools(upstream, req, socket, head, onClientFrame);
 });
 
 async function shutdown() {

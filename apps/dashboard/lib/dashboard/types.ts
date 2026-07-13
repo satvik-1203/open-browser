@@ -1,7 +1,13 @@
 import type {
+  ActionRecordingEvent,
   BrowserSessionRecord,
+  ConsoleRecordingEvent,
   GetBrowserResponse,
   GetRecordingUrlResponse,
+  NavigationRecordingEvent,
+  NetworkRecordingEvent,
+  RecordingEvent,
+  RecordingEventKind,
   StartBrowserOptions,
   StartBrowserResponse,
 } from "@repo/types";
@@ -27,9 +33,15 @@ export interface CreatedApiToken {
 export type DashboardSection = "keys" | "browsers" | "recordings";
 
 export type {
+  ActionRecordingEvent,
   BrowserSessionRecord,
+  ConsoleRecordingEvent,
   GetBrowserResponse,
   GetRecordingUrlResponse,
+  NavigationRecordingEvent,
+  NetworkRecordingEvent,
+  RecordingEvent,
+  RecordingEventKind,
   StartBrowserOptions,
   StartBrowserResponse,
 };

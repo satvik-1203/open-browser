@@ -65,6 +65,14 @@ export async function startRecording(
 ): Promise<Recorder> {
   const dir = await mkdtemp(join(recordingTmpBase(), "obrec-"));
   const client = await page.createCDPSession();
+
+  // Append-only log of client-driven CDP commands (clicks, scrolls, navigations,
+  // …) teed off the devtools proxy. Actions arrive on the client's own CDP
+  // connection, not this recorder's session, so the proxy feeds them in via
+  // `recordAction`. Streamed straight to disk — nothing accumulates in the heap.
+  const actionsFile = join(dir, "actions.log");
+  const actionsStream = createWriteStream(actionsFile);
+  actionsStream.on("error", () => {});
   const frames: CaptureFrame[] = [];
   const pending: Promise<void>[] = [];
   // In-flight Network.getResponseBody calls, awaited before the session detaches.
@@ -187,6 +195,13 @@ export async function startRecording(
   });
 
   return {
+    recordAction(method: string, params: unknown): void {
+      if (actionsStream.writable) {
+        actionsStream.write(
+          `${JSON.stringify({ ts: Date.now(), method, params })}\n`,
+        );
+      }
+    },
     async stop(): Promise<Capture> {
       const stopTs = Date.now();
       try {
@@ -204,13 +219,13 @@ export async function startRecording(
         // Ignore — session already detached.
       }
 
-      // Close every target's log stream and wait for the last bytes to flush to
-      // disk before the files are handed off for upload. Settle on whichever of
-      // close/error comes first (and resolve immediately if a write error
-      // already destroyed the stream) so a broken stream can't hang stop() —
-      // and with it leave the session wedged in "processing".
+      // Close every target's log stream (plus the actions log) and wait for the
+      // last bytes to flush to disk before the files are handed off for upload.
+      // Settle on whichever of close/error comes first (and resolve immediately
+      // if a write error already destroyed the stream) so a broken stream can't
+      // hang stop() — and with it leave the session wedged in "processing".
       await Promise.all(
-        [...targetStreams.values()].map(
+        [...targetStreams.values(), actionsStream].map(
           (stream) =>
             new Promise<void>((resolve) => {
               if (stream.destroyed) {
@@ -226,7 +241,14 @@ export async function startRecording(
 
       // Only keep frames that actually made it to disk.
       const written = frames.filter((frame) => existsSync(frame.file));
-      return { dir, frames: written, startTs, stopTs, logs };
+      return {
+        dir,
+        frames: written,
+        startTs,
+        stopTs,
+        logs,
+        actionsLog: existsSync(actionsFile) ? actionsFile : undefined,
+      };
     },
   };
 }

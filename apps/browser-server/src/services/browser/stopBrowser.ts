@@ -16,9 +16,11 @@ export function stopBrowser(id: string): StopBrowserResult | undefined {
     ? { status: "processing" }
     : session.recording;
 
-  // Fire-and-forget the whole teardown so `stop` returns instantly. finalize
-  // (encode + upload) needs the page alive, so the browser is closed only after
-  // it. handleSessionEnd sets `endHandled` synchronously, so the `disconnected`
+  // Fire-and-forget the whole teardown so `stop` returns instantly. A recorded
+  // session's browser is closed inside finalize the moment the capture is
+  // drained (before the slow encode + upload); this trailing close is the path
+  // for a non-recorded session (no finalize) and a harmless no-op otherwise.
+  // handleSessionEnd sets `endHandled` synchronously, so the `disconnected`
   // handler that `close()` triggers no-ops rather than ending the session twice.
   void handleSessionEnd(session, { status: "stopped" })
     .then(() => session.browser.close())
