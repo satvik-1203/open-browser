@@ -42,6 +42,10 @@ export interface BrowserSessionRecord {
 
 export interface ListBrowsersResponse {
   sessions: BrowserSessionRecord[];
+  /** Opaque cursor for the next page, or null when there are no more. */
+  nextCursor?: string | null;
+  /** Total matching sessions (paginated requests only). */
+  total?: number;
 }
 
 /**

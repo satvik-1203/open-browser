@@ -23,10 +23,16 @@ function tokensMatch(provided: string, expected: string): boolean {
  * and a warning is logged at startup — this keeps local dev and tests working
  * without a token. Set the token in every deployed environment.
  */
+// The DevTools inspector frontend is loaded by a plain browser (the "Open
+// DevTools" link) which can't attach the bypass-token header. Its assets are
+// reachable by session id only — the same tokenless surface as the CDP ws URLs
+// we already hand out — so let that path through the gate.
+const DEVTOOLS_ASSET_PATH = /^\/browser\/[^/]+\/devtools\//;
+
 export function bypassToken(req: Request, res: Response, next: NextFunction) {
   const expected = process.env.BROWSER_SERVER_BYPASS_TOKEN;
 
-  if (!expected) {
+  if (!expected || DEVTOOLS_ASSET_PATH.test(req.path)) {
     next();
     return;
   }

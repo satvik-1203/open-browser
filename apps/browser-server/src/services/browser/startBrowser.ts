@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { logger } from "@repo/logger";
 import type { StartBrowserOptions } from "@repo/types";
 import puppeteer from "puppeteer";
 import { sessions } from "@/lib/browsers";
@@ -95,6 +96,11 @@ export async function startBrowser(
   // `failed`) or the normal stop path (already handled by stopBrowser, so this
   // no-ops). Also finalizes a pending recording if the browser died unexpectedly.
   browser.once("disconnected", () => {
+    // `endHandled` is set synchronously by stopBrowser on the normal stop path,
+    // so its value here distinguishes an expected teardown from an unexpected
+    // crash — the latter is what silently orphans a session as "running".
+    const expected = session.endHandled === true;
+    logger[expected ? "info" : "warn"]("browser disconnected", { id, expected });
     void handleSessionEnd(session);
   });
 

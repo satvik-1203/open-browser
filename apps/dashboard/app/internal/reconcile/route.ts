@@ -20,6 +20,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
+  // In development the browser server restarts constantly (hot reload), and each
+  // boot would otherwise mark every live session `server-error`. Skip it so local
+  // sessions survive a browser-server restart; prod still self-heals.
+  if (process.env.NODE_ENV !== "production") {
+    logger.info("reconcile skipped (non-production)");
+    return NextResponse.json({ ok: true, reconciled: 0, skipped: "dev" });
+  }
+
   const settled = await db
     .update(schema.browserSession)
     .set({
