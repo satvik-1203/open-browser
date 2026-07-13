@@ -16,7 +16,13 @@ function callbackConfig() {
 
 async function post(path: string, body?: unknown): Promise<void> {
   const config = callbackConfig();
-  if (!config) return;
+  if (!config) {
+    // No backend to notify (local dev / tests). Surface it: an unexpected crash
+    // reported through here otherwise vanishes without a trace, leaving the DB
+    // row stuck "running" with nothing explaining why.
+    logger.debug("backend callback skipped (not configured)", { path });
+    return;
+  }
 
   try {
     const res = await fetch(`${config.url}${path}`, {
@@ -30,6 +36,8 @@ async function post(path: string, body?: unknown): Promise<void> {
     });
     if (!res.ok) {
       logger.warn("backend callback rejected", { path, status: res.status });
+    } else {
+      logger.debug("backend callback delivered", { path, status: res.status });
     }
   } catch (error) {
     logger.warn("backend callback failed", {

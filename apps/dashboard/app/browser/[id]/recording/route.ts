@@ -22,6 +22,8 @@ export async function GET(
     return NextResponse.json({ error: "recording not found" }, { status: 404 });
   }
 
-  const { status, body } = await browserServer.getRecordingUrl(row.id);
+  const download =
+    new URL(request.url).searchParams.get("download") === "1";
+  const { status, body } = await browserServer.getRecordingUrl(row.id, download);
   return NextResponse.json(body, { status });
 }

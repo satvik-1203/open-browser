@@ -26,7 +26,11 @@ Turborepo + pnpm workspaces.
   place to grow a dedicated API service later.
 - `packages/ui` (`@repo/ui`) — shared shadcn component library + the Tailwind theme.
 - `packages/db` (`@repo/db`) — drizzle schema + client (Postgres). Holds the better-auth
-  tables plus `browser_session` (session log; `status` is typed text, not a pg enum).
+  tables plus `api_token` (hashed token secrets) and `browser_session` (session log;
+  `status` is typed text, not a pg enum). Mint tokens via `mintApiToken` (never insert
+  `api_token` rows directly).
+- `packages/crypto` (`@repo/crypto`) — API-token helpers: `generateApiToken` (mint a
+  random `ob_…` secret + its hash) and `hashApiToken` (SHA-256, for lookup).
 - `packages/types`, `packages/logger`, `packages/eslint-config`, `packages/typescript-config`.
 
 ## Styling conventions
@@ -51,6 +55,12 @@ Turborepo + pnpm workspaces.
   and redirects to `/sign-in`. Public auth forms are under `app/(public)/`.
 - Auth tables live in `@repo/db`. Never insert users directly — create them through
   better-auth so passwords hash correctly.
+- **API tokens** are opaque random secrets (`ob_` + 16 chars) minted by `@repo/crypto`'s
+  `generateApiToken`; only their SHA-256 hash is stored on `api_token.tokenHash` — the raw
+  token is shown once and never persisted. A request with `Authorization: Bearer ob_…` is
+  resolved by hashing it and looking up the row by `tokenHash` (owner + revocation come
+  from the row), in `lib/api-auth.ts` (dashboard) and `apps/backend`. Revocation is a soft
+  delete (`revokedAt`).
 
 ## Commands
 

@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { logger } from "@repo/logger";
 import type { StartBrowserOptions } from "@repo/types";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { sessions } from "@/lib/browsers";
 import type { BrowserSession } from "@/lib/browsers.types";
 import {
@@ -12,12 +14,19 @@ import type { StartBrowserResult } from "@/services/browser/types";
 import { startRecording } from "@/services/recording/index";
 import { isStorageConfigured } from "@/services/storage/index";
 
+// puppeteer-extra's stealth plugin bundles ~17 evasions (webdriver, chrome.runtime,
+// navigator.plugins/languages, WebGL vendor, iframe.contentWindow, codecs, …) —
+// far more thorough than hand-rolled patches. Registered once at module load.
+puppeteer.use(StealthPlugin());
+
 export async function startBrowser(
   options: StartBrowserOptions,
   id: string = randomUUID(),
 ): Promise<StartBrowserResult> {
   const {
-    headless = true,
+    // Headful by default — less bot-detectable, and the container runs under
+    // Xvfb so a display is available. Callers can still opt into headless.
+    headless = false,
     viewport,
     url,
     initialCookie,
@@ -46,8 +55,12 @@ export async function startBrowser(
   const browser = await puppeteer.launch({
     headless,
     defaultViewport: viewport ?? null,
+    // Drop the automation flag puppeteer adds by default; combined with the
+    // blink-feature switch below this removes the most obvious `webdriver` tells.
+    ignoreDefaultArgs: ["--enable-automation"],
     args: [
       "--disable-dev-shm-usage",
+      "--disable-blink-features=AutomationControlled",
       ...sandboxArgs,
       ...(proxy ? [`--proxy-server=${proxy.server}`] : []),
     ],
@@ -95,6 +108,11 @@ export async function startBrowser(
   // `failed`) or the normal stop path (already handled by stopBrowser, so this
   // no-ops). Also finalizes a pending recording if the browser died unexpectedly.
   browser.once("disconnected", () => {
+    // `endHandled` is set synchronously by stopBrowser on the normal stop path,
+    // so its value here distinguishes an expected teardown from an unexpected
+    // crash — the latter is what silently orphans a session as "running".
+    const expected = session.endHandled === true;
+    logger[expected ? "info" : "warn"]("browser disconnected", { id, expected });
     void handleSessionEnd(session);
   });
 

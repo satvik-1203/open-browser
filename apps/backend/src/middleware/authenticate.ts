@@ -1,4 +1,4 @@
-import { decryptToken } from "@repo/crypto";
+import { hashApiToken } from "@repo/crypto";
 import { db, schema } from "@repo/db";
 import { logger } from "@repo/logger";
 import { eq } from "drizzle-orm";
@@ -14,8 +14,8 @@ const API_TOKEN_PREFIX = "ob_";
  * Authenticate a request from either credential and expose the result as
  * `req.userId` (+ richer `req.auth`):
  *
- *  1. `Authorization: Bearer ob_…` — a programmatic API token: decrypt it and
- *     confirm the `api_token` row exists, matches the user, and isn't revoked.
+ *  1. `Authorization: Bearer ob_…` — a programmatic API token: hash it, look up
+ *     the `api_token` row by that hash, and confirm it exists and isn't revoked.
  *  2. Otherwise — a logged-in user's session: forward the request's cookies to
  *     the Next.js auth server's `/api/auth/get-session` and trust the user it
  *     returns.
@@ -64,20 +64,13 @@ export async function authenticate(
 async function resolveApiToken(
   token: string,
 ): Promise<{ userId: string; tokenId: string } | null> {
-  let payload;
-  try {
-    payload = decryptToken(token);
-  } catch {
-    return null;
-  }
-
   const [row] = await db
     .select()
     .from(schema.apiToken)
-    .where(eq(schema.apiToken.id, payload.tokenId))
+    .where(eq(schema.apiToken.tokenHash, hashApiToken(token)))
     .limit(1);
 
-  if (!row || row.userId !== payload.userId || row.revokedAt !== null) {
+  if (!row || row.revokedAt !== null) {
     return null;
   }
 

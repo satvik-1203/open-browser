@@ -56,15 +56,33 @@ server.on("upgrade", (req, socket, head) => {
       req.url ?? "",
     );
   const id = match?.groups?.browserId ?? match?.groups?.pageId;
-  const upstream = id
-    ? resolveDevtoolsUpstream(id, match?.groups?.targetId)
-    : undefined;
+  const targetId = match?.groups?.targetId;
+  const kind = targetId ? "page" : "browser";
 
-  if (!upstream) {
+  if (!id) {
+    logger.warn("devtools upgrade rejected: unrecognized path", {
+      url: req.url,
+    });
     socket.destroy();
     return;
   }
 
+  const upstream = resolveDevtoolsUpstream(id, targetId);
+  if (!upstream) {
+    // No live session in the in-memory map — it never started, already ended,
+    // or the browser crashed and was reaped. The client (e.g. the dashboard
+    // live view) sees an immediate hang-up; log so a "stuck on Connecting…"
+    // report is traceable to the vanished session rather than silent.
+    logger.warn("devtools upgrade rejected: no live session", {
+      id,
+      targetId,
+      kind,
+    });
+    socket.destroy();
+    return;
+  }
+
+  logger.info("devtools upgrade proxied", { id, targetId, kind });
   proxyDevtools(upstream, req, socket, head);
 });
 

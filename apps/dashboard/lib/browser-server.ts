@@ -101,10 +101,11 @@ export const browserServer = {
       `/browser/${encodeURIComponent(id)}`,
     );
   },
-  getRecordingUrl(id: string) {
+  getRecordingUrl(id: string, download = false) {
+    const suffix = download ? "?download=1" : "";
     return request<GetRecordingUrlResponse>(
       "GET",
-      `/browser/${encodeURIComponent(id)}/recording`,
+      `/browser/${encodeURIComponent(id)}/recording${suffix}`,
     );
   },
 };

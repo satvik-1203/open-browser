@@ -62,11 +62,17 @@ ENV NODE_ENV=production \
 # hand-listing the shared libraries Chrome needs. Pinned to bullseye (not
 # bookworm): bookworm's chromium (150.x) crashes on launch with SIGTRAP on
 # arm64 under some container runtimes; bullseye's build (120.x) is stable.
+# `xvfb` provides a virtual X display so Chrome can run HEADFUL (headless: false)
+# — less bot-detectable — with no physical screen. The server is launched under
+# `xvfb-run` below; headless launches ignore the display, so this is harmless
+# either way.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       chromium \
       fonts-liberation \
       dumb-init \
       ffmpeg \
+      xvfb \
+      xauth \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --gid 1001 browsers \
@@ -83,4 +89,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://localhost:'+(process.env.PORT||8080)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "dist/index.js"]
+# Run under a virtual X display so headful Chrome has somewhere to render.
+# `--auto-servernum` picks a free display and shares it across all Chrome
+# instances this server spawns (one Xvfb, not one per session).
+CMD ["xvfb-run", "--auto-servernum", "--server-args=-screen 0 1920x1080x24 -nolisten tcp", "node", "dist/index.js"]

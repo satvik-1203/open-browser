@@ -30,11 +30,14 @@ export function recordingLogKey(
  * the in-memory session — and existence is confirmed against storage. The URL
  * is signed so a client without credentials can fetch the private object.
  */
-export async function recordingUrl(id: string): Promise<string | undefined> {
+export async function recordingUrl(
+  id: string,
+  options?: { downloadFilename?: string },
+): Promise<string | undefined> {
   const storage = getStorage();
   if (!storage) return undefined;
 
   const key = recordingKey(id, storage.prefix);
   if (!(await storage.adapter.exists(key))) return undefined;
-  return storage.adapter.signedUrl(key, RECORDING_URL_TTL_SECONDS);
+  return storage.adapter.signedUrl(key, RECORDING_URL_TTL_SECONDS, options);
 }

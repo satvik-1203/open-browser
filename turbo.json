@@ -2,6 +2,7 @@
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
   "globalEnv": [
+    "NODE_ENV",
     "BROWSER_SERVER_URL",
     "PORT",
     "BROWSER_SERVER_BYPASS_TOKEN",

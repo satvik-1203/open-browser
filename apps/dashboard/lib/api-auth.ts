@@ -1,4 +1,4 @@
-import { decryptToken } from "@repo/crypto";
+import { hashApiToken } from "@repo/crypto";
 import { db, schema } from "@repo/db";
 import { logger } from "@repo/logger";
 import { eq } from "drizzle-orm";
@@ -43,20 +43,13 @@ export async function getAuthedUser(
 
 /** Validate an API token; returns the identity or null (never throws). */
 async function resolveApiToken(token: string): Promise<AuthedUser | null> {
-  let payload;
-  try {
-    payload = decryptToken(token);
-  } catch {
-    return null;
-  }
-
   const [row] = await db
     .select()
     .from(schema.apiToken)
-    .where(eq(schema.apiToken.id, payload.tokenId))
+    .where(eq(schema.apiToken.tokenHash, hashApiToken(token)))
     .limit(1);
 
-  if (!row || row.userId !== payload.userId || row.revokedAt !== null) {
+  if (!row || row.revokedAt !== null) {
     return null;
   }
 

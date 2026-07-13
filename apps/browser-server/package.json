@@ -21,6 +21,8 @@
     "pidtree": "^1.0.0",
     "pidusage": "^4.0.1",
     "puppeteer": "^25.3.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "ws": "^8.21.0"
   },
   "devDependencies": {

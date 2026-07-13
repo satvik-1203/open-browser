@@ -1,4 +1,4 @@
-import { encryptToken } from "@repo/crypto";
+import { mintApiToken } from "@repo/db";
 
 import { TEST_USER } from "./config";
 import { schema, type TestDb } from "./db";
@@ -18,13 +18,14 @@ export interface SeedOverrides {
 
 /**
  * Seed a user and mint an API token WITHOUT any login flow: insert the `user`
- * row directly and encrypt an `api_token` row into an `ob_…` key — the same
- * thing `POST /api/tokens` does internally, minus the session/password. This is
- * valid because every e2e test authenticates with the API token, never a
- * password, so no better-auth `account`/hashed-password row is needed.
+ * row directly, then mint an `ob_…` key straight into the DB via the shared
+ * `mintApiToken` helper — the same code path the dashboard's create-token action
+ * uses, minus the session/password. This is valid because every e2e test
+ * authenticates with the API token, never a password, so no better-auth
+ * `account`/hashed-password row is needed.
  *
- * Requires `API_TOKEN_ENCRYPTION_KEY` to be set in this process (the harness
- * sets it to the same value the dashboard child uses, so tokens round-trip).
+ * The token is a random secret; only its hash is stored, and the dashboard/
+ * backend look it up by that hash — no shared encryption key is involved.
  */
 export async function seedUserWithToken(
   db: TestDb,
@@ -43,12 +44,9 @@ export async function seedUserWithToken(
     })
     .onConflictDoNothing();
 
-  const [row] = await db
-    .insert(schema.apiToken)
-    .values({ userId: user.id, name: "e2e-key" })
-    .returning();
-  if (!row) throw new Error("failed to insert api token row");
-
-  const token = encryptToken({ userId: user.id, tokenId: row.id });
+  const { token } = await mintApiToken(db, {
+    userId: user.id,
+    name: "e2e-key",
+  });
   return { userId: user.id, token };
 }
