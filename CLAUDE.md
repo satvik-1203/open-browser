@@ -12,8 +12,10 @@ Turborepo + pnpm workspaces.
   session to the `browser_session` table, ownership-scoped by `userId`. Auth is in-process
   (better-auth session or `ob_` API token via `lib/api-auth.ts`) — no loopback HTTP. It
   drives `apps/browser-server` over its bypass-token REST surface (`lib/browser-server.ts`,
-  raw `node:http` so it can override `Host`); `/metrics` + `/browser/metrics` are thin
-  passthroughs. The browser server posts back to secret-gated `/internal/*` callbacks
+  raw `node:http` so it can override `Host`). Server/browser **metrics are NOT exposed** on
+  the per-user API — the browser server's metrics list every session across all users
+  (leaking ids that grant tokenless CDP access), so it stays operator-only (reached
+  directly on the browser server with the bypass token). The browser server posts back to secret-gated `/internal/*` callbacks
   (session-ended, boot reconcile) so the DB settles even on crashes/restarts. Returned CDP
   ws URLs point straight at the browser server — clients connect CDP directly, no token.
 - `apps/homepage` — marketing site (plain CSS, warm "paper" design system).

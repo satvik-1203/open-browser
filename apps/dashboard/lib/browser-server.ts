@@ -107,8 +107,4 @@ export const browserServer = {
       `/browser/${encodeURIComponent(id)}/recording`,
     );
   },
-  /** Passthrough for the metrics endpoints (not session-scoped). */
-  proxyGet(pathWithQuery: string) {
-    return request<unknown>("GET", pathWithQuery);
-  },
 };

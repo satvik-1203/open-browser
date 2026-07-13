@@ -35,7 +35,15 @@ export async function handleSessionEnd(
   if (session.endHandled) return;
   session.endHandled = true;
 
-  await finalizeRecording(session); // idempotent; no-op without a recorder
+  // Never let a recording-finalization failure abort teardown: if it threw, the
+  // session would linger in the map (a zombie) and the backend would never get
+  // the end callback. Finalize is best-effort; deletion + notify must still run.
+  await finalizeRecording(session).catch((error: unknown) => {
+    logger.warn("recording finalization failed; continuing session teardown", {
+      id: session.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
   sessions.delete(session.id);
 
   logger.info("browser session ended", {
