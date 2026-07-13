@@ -40,10 +40,23 @@ export function createS3Adapter(config: S3Config): StorageAdapter {
 
       return { key, url: url(key) };
     },
-    signedUrl(key: string, expiresInSeconds: number): Promise<string> {
+    signedUrl(
+      key: string,
+      expiresInSeconds: number,
+      options?: { downloadFilename?: string },
+    ): Promise<string> {
       return getSignedUrl(
         client,
-        new GetObjectCommand({ Bucket: config.bucket, Key: key }),
+        new GetObjectCommand({
+          Bucket: config.bucket,
+          Key: key,
+          // Force a browser download (instead of inline render) with a filename.
+          ...(options?.downloadFilename
+            ? {
+                ResponseContentDisposition: `attachment; filename="${options.downloadFilename}"`,
+              }
+            : {}),
+        }),
         { expiresIn: expiresInSeconds },
       );
     },

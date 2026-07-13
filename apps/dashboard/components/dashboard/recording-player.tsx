@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
+import { dashboardApi } from "@/lib/dashboard/api";
 import { downloadFile } from "@/lib/dashboard/download";
 import { useRecordingUrl, useSessionRecord } from "@/lib/dashboard/queries";
 
@@ -56,10 +57,12 @@ export function RecordingPlayer({ id }: { id: string }) {
   }, [preparing, refetch]);
 
   async function download() {
-    if (!url) return;
     setDownloading(true);
     try {
-      await downloadFile(url, `recording-${id}.mp4`);
+      const resolved = await dashboardApi.getRecordingUrl(id, {
+        download: true,
+      });
+      downloadFile(resolved.url, `recording-${id}.mp4`);
     } finally {
       setDownloading(false);
     }

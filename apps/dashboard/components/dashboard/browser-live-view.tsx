@@ -218,6 +218,49 @@ export function BrowserLiveView({
     });
   }
 
+  const CLIPBOARD_KEYS = new Set(["a", "c", "v", "x"]);
+
+  function isClipboardShortcut(e: React.KeyboardEvent): boolean {
+    return (e.metaKey || e.ctrlKey) && CLIPBOARD_KEYS.has(e.key.toLowerCase());
+  }
+
+  // Bridge the user's *local* clipboard to the remote page — select-all, copy,
+  // cut, and paste all act on the browser being controlled. (CDP synthetic
+  // Cmd/Ctrl key events don't reliably drive Chrome's built-in edit commands,
+  // and paste must pull from the local machine's clipboard.)
+  async function handleClipboard(e: React.KeyboardEvent) {
+    const conn = connRef.current;
+    if (!conn) return;
+    const k = e.key.toLowerCase();
+    try {
+      if (k === "v") {
+        const text = await navigator.clipboard.readText();
+        if (text) await conn.send("Input.insertText", { text });
+      } else if (k === "c" || k === "x") {
+        const res = await conn.send<{ result?: { value?: unknown } }>(
+          "Runtime.evaluate",
+          { expression: "getSelection().toString()", returnByValue: true },
+        );
+        const value = res.result?.value;
+        if (typeof value === "string" && value) {
+          await navigator.clipboard.writeText(value);
+        }
+        if (k === "x") {
+          await conn.send("Runtime.evaluate", {
+            expression: "document.execCommand('delete')",
+          });
+        }
+      } else if (k === "a") {
+        await conn.send("Runtime.evaluate", {
+          expression:
+            "(function(){var el=document.activeElement;if(el&&typeof el.select==='function'){el.select();}else{document.execCommand('selectAll');}})()",
+        });
+      }
+    } catch {
+      // Clipboard permission denied or the page went away — ignore.
+    }
+  }
+
   const inputHandlers = {
     tabIndex: 0,
     onMouseDown: (e: React.MouseEvent) => {
@@ -240,8 +283,21 @@ export function BrowserLiveView({
         deltaY: e.deltaY,
       });
     },
-    onKeyDown: (e: React.KeyboardEvent) => key("keyDown", e),
-    onKeyUp: (e: React.KeyboardEvent) => key("keyUp", e),
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (isClipboardShortcut(e)) {
+        e.preventDefault();
+        void handleClipboard(e);
+        return;
+      }
+      key("keyDown", e);
+    },
+    onKeyUp: (e: React.KeyboardEvent) => {
+      if (isClipboardShortcut(e)) {
+        e.preventDefault();
+        return;
+      }
+      key("keyUp", e);
+    },
   };
 
   const overlays = (

@@ -31,17 +31,16 @@ export const qk = {
 
 // --- Browsers ------------------------------------------------------------
 
-/** Every session; polls while any is mid-lifecycle so status settles live. */
+/**
+ * The user's live sessions (server-filtered via the (userId, status) index).
+ * Polls while any exists so status settles live, and stops once none remain.
+ */
 export function useBrowsersQuery() {
   return useQuery({
     queryKey: qk.browsers,
-    queryFn: () => dashboardApi.listBrowsers(),
-    refetchInterval: (query) => {
-      const hasActive = query.state.data?.sessions.some((s) =>
-        ACTIVE_STATUSES.has(s.status),
-      );
-      return hasActive ? 4000 : false;
-    },
+    queryFn: () => dashboardApi.listBrowsers({ active: true }),
+    refetchInterval: (query) =>
+      (query.state.data?.sessions.length ?? 0) > 0 ? 4000 : false,
   });
 }
 

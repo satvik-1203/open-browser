@@ -14,6 +14,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 
+import { useBrowsersQuery } from "@/lib/dashboard/queries";
+
 interface NavItem {
   href: string;
   label: string;
@@ -63,6 +65,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     });
   }
 
+  // Subtle live-browser count shown on the Browsers nav item.
+  const browsers = useBrowsersQuery();
+  const liveCount = browsers.data?.sessions.length ?? 0;
+
   return (
     <div className="flex flex-1 overflow-hidden">
       <aside
@@ -75,6 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {NAV.map((item) => {
             const active = item.isActive(pathname);
             const Icon = item.icon;
+            const count = item.href === "/" ? liveCount : 0;
             return (
               <Link
                 key={item.href}
@@ -89,13 +96,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
-                <Icon
-                  className={cn(
-                    "size-4 shrink-0",
-                    active ? "text-primary" : "text-muted-foreground",
+                <span className="relative flex shrink-0">
+                  <Icon
+                    className={cn(
+                      "size-4",
+                      active ? "text-primary" : "text-muted-foreground",
+                    )}
+                  />
+                  {collapsed && count > 0 && (
+                    <span className="bg-primary absolute -top-1 -right-1 size-1.5 rounded-full" />
                   )}
-                />
+                </span>
                 {!collapsed && <span className="truncate">{item.label}</span>}
+                {!collapsed && count > 0 && (
+                  <span className="text-muted-foreground ml-auto text-xs tabular-nums">
+                    {count}
+                  </span>
+                )}
               </Link>
             );
           })}

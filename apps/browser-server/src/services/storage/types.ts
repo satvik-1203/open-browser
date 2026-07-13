@@ -23,9 +23,15 @@ export interface StorageAdapter {
   url(key: string): string;
   /**
    * Short-lived signed URL granting read access to a private object, so a
-   * client without credentials can fetch it directly.
+   * client without credentials can fetch it directly. When `downloadFilename` is
+   * set, the URL forces a download (Content-Disposition: attachment) with that
+   * filename instead of rendering inline.
    */
-  signedUrl(key: string, expiresInSeconds: number): Promise<string>;
+  signedUrl(
+    key: string,
+    expiresInSeconds: number,
+    options?: { downloadFilename?: string },
+  ): Promise<string>;
   /** Whether an object exists at `key`. */
   exists(key: string): Promise<boolean>;
 }

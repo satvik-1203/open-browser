@@ -49,6 +49,8 @@ function safeParse(text: string): unknown {
 export interface ListBrowsersParams {
   /** Exact-id lookup — returns just that session (or none). */
   id?: string;
+  /** Live sessions only (starting/running/stopping). */
+  active?: boolean;
   /** Restrict to sessions that have a recording. */
   recorded?: boolean;
   /** Enable keyset pagination; the response carries `nextCursor`. */
@@ -62,6 +64,7 @@ export const dashboardApi = {
   listBrowsers(params: ListBrowsersParams = {}) {
     const qs = new URLSearchParams();
     if (params.id) qs.set("id", params.id);
+    if (params.active) qs.set("active", "1");
     if (params.recorded) qs.set("recorded", "1");
     if (params.limit != null) qs.set("limit", String(params.limit));
     if (params.cursor) qs.set("cursor", params.cursor);
@@ -87,9 +90,10 @@ export const dashboardApi = {
   getBrowser(id: string) {
     return call<GetBrowserResponse>(`/browser/${encodeURIComponent(id)}`);
   },
-  getRecordingUrl(id: string) {
+  getRecordingUrl(id: string, opts?: { download?: boolean }) {
+    const suffix = opts?.download ? "?download=1" : "";
     return call<GetRecordingUrlResponse>(
-      `/browser/${encodeURIComponent(id)}/recording`,
+      `/browser/${encodeURIComponent(id)}/recording${suffix}`,
     );
   },
 };

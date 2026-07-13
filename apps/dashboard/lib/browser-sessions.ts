@@ -4,7 +4,7 @@ import type {
   RecordingStatus,
   StartBrowserOptions,
 } from "@repo/types";
-import { and, count, desc, eq, isNotNull, lt, ne, or } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, lt, ne, or } from "drizzle-orm";
 
 type BrowserSessionRow = typeof schema.browserSession.$inferSelect;
 
@@ -42,6 +42,26 @@ export async function listSessions(
     .select()
     .from(schema.browserSession)
     .where(eq(schema.browserSession.userId, userId))
+    .orderBy(desc(schema.browserSession.createdAt));
+}
+
+// Statuses that mean a browser is still live. Served by the
+// `browser_session_user_status_idx` (userId, status) index.
+const ACTIVE_STATUSES = ["starting", "running", "stopping"] as const;
+
+/** A user's live sessions only, most recent first. */
+export async function listActiveSessions(
+  userId: string,
+): Promise<BrowserSessionRow[]> {
+  return db
+    .select()
+    .from(schema.browserSession)
+    .where(
+      and(
+        eq(schema.browserSession.userId, userId),
+        inArray(schema.browserSession.status, [...ACTIVE_STATUSES]),
+      ),
+    )
     .orderBy(desc(schema.browserSession.createdAt));
 }
 

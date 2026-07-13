@@ -11,7 +11,11 @@ export async function getRecordingUrl(req: Request, res: Response) {
   }
 
   try {
-    const url = await recordingUrl(id);
+    const download = req.query.download === "1" || req.query.download === "true";
+    const url = await recordingUrl(
+      id,
+      download ? { downloadFilename: `recording-${id}.mp4` } : undefined,
+    );
     if (!url) {
       res.status(404).json({ error: "recording not found" });
       return;

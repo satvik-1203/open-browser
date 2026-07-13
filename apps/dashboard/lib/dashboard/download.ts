@@ -1,28 +1,13 @@
 /**
- * Trigger a download for a resolved recording URL. Tries a blob fetch so the
- * file saves directly (staying on the page); falls back to a plain anchor when
- * the storage host blocks cross-origin reads.
+ * Trigger a download for a recording URL. The URL is presigned with
+ * `Content-Disposition: attachment`, so navigating to it saves the file to disk
+ * (instead of rendering inline) even though S3 is a different origin — the
+ * `download` attribute alone is ignored cross-origin.
  */
-export async function downloadFile(
-  url: string,
-  filename: string,
-): Promise<void> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(String(res.status));
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    triggerAnchor(objectUrl, filename);
-    URL.revokeObjectURL(objectUrl);
-  } catch {
-    triggerAnchor(url, filename);
-  }
-}
-
-function triggerAnchor(href: string, filename: string): void {
+export function downloadFile(url: string, filename: string): void {
   const a = document.createElement("a");
-  a.href = href;
-  a.download = filename;
+  a.href = url;
+  a.download = filename; // best-effort hint; the URL's Content-Disposition wins
   a.rel = "noreferrer";
   document.body.appendChild(a);
   a.click();

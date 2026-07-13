@@ -19,11 +19,12 @@ import type { BrowserSessionRecord } from "@/lib/dashboard/types";
 
 const ACTIVE = new Set(["starting", "running", "stopping"]);
 
-// A new browser is always launched with these fixed options — a standard
-// 1080p 16:9 viewport so pages render in their desktop layout.
+// A new browser is always launched with these fixed options — headful (less
+// bot-detectable) with a standard 1080p 16:9 viewport so pages render in their
+// desktop layout.
 const DEFAULT_START = {
   url: "https://google.com",
-  headless: true,
+  headless: false,
   record: true,
   viewport: { width: 1920, height: 1080 },
 } as const;
@@ -58,6 +59,7 @@ export function BrowsersList() {
       <PanelHeader
         title="Browsers"
         subtitle="Live browser sessions. Click a card to open and control it."
+        count={live?.length ?? 0}
         actions={
           <Button size="sm" onClick={start} disabled={startMut.isPending}>
             {startMut.isPending ? <Loader2 className="animate-spin" /> : <Plus />}

@@ -98,8 +98,8 @@ export function RecordingsTable() {
     setDownloading(id);
     setDownloadError(null);
     try {
-      const { url } = await dashboardApi.getRecordingUrl(id);
-      await downloadFile(url, `recording-${id}.mp4`);
+      const { url } = await dashboardApi.getRecordingUrl(id, { download: true });
+      downloadFile(url, `recording-${id}.mp4`);
     } catch (err) {
       setDownloadError(err instanceof Error ? err.message : "failed to download");
     } finally {

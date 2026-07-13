@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { getAuthedUser } from "@/lib/api-auth";
 import {
   findOwnedSession,
+  listActiveSessions,
   listSessions,
   listSessionsPage,
   toRecord,
@@ -39,6 +40,13 @@ export async function GET(request: Request) {
     const response: ListBrowsersResponse = {
       sessions: row ? [toRecord(row)] : [],
     };
+    return NextResponse.json(response);
+  }
+
+  // Live sessions only (uses the (userId, status) index).
+  if (url.searchParams.get("active") === "1") {
+    const rows = await listActiveSessions(authed.userId);
+    const response: ListBrowsersResponse = { sessions: rows.map(toRecord) };
     return NextResponse.json(response);
   }
 
