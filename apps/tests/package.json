@@ -4,12 +4,18 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "node --import tsx --test src/*.test.ts",
+    "test": "pnpm exec turbo run build --filter=browser-server --filter=dashboard && node --import tsx --test src/e2e/*.test.ts",
+    "test:e2e": "node --import tsx --test src/e2e/*.test.ts",
     "lint": "eslint --max-warnings 0",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@repo/crypto": "workspace:*",
+    "@repo/db": "workspace:*",
+    "@repo/types": "workspace:*",
+    "drizzle-orm": "^0.45.2",
     "open-browser-sdk": "workspace:*",
+    "pg": "^8.22.0",
     "puppeteer": "^25.3.0"
   },
   "devDependencies": {
@@ -17,6 +23,7 @@
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^22.15.3",
+    "@types/pg": "^8.20.0",
     "eslint": "^9.39.1",
     "tsx": "^4.20.3",
     "typescript": "5.9.2"

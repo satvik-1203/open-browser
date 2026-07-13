@@ -22,16 +22,19 @@ const port = Number(process.env.PORT) || 3001;
 const recordingEnabled = isStorageConfigured();
 
 app.use(requestLogger);
-// Gate every route behind the shared bypass token before any handler runs.
+
+// Health check stays open — before the token gate — so load balancers and the
+// orchestrating API can probe liveness without the bypass token.
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok" });
+});
+
+// Gate every remaining route behind the shared bypass token before any handler runs.
 app.use(bypassToken);
 app.use(express.json());
 
 app.get("/", (_req, res) => {
   res.json({ message: "Hello from Express!" });
-});
-
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok" });
 });
 
 app.use("/browser", browserRouter);
