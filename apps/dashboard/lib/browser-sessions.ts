@@ -65,6 +65,29 @@ export async function listActiveSessions(
     .orderBy(desc(schema.browserSession.createdAt));
 }
 
+/**
+ * Narrow a set of session ids to the ones this user owns. Used to scope the
+ * browser server's global view (which spans every user) down to the caller —
+ * ids are looked up regardless of status, so a leaked session still shows up
+ * even when its row was settled by a reconcile.
+ */
+export async function filterOwnedSessionIds(
+  ids: string[],
+  userId: string,
+): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const rows = await db
+    .select({ id: schema.browserSession.id })
+    .from(schema.browserSession)
+    .where(
+      and(
+        eq(schema.browserSession.userId, userId),
+        inArray(schema.browserSession.id, ids),
+      ),
+    );
+  return new Set(rows.map((row) => row.id));
+}
+
 export interface SessionsPage {
   rows: BrowserSessionRow[];
   nextCursor: string | null;

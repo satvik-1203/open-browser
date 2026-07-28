@@ -62,12 +62,25 @@ export class BrowserServer {
     return url;
   }
 
-  /** Host CPU and memory utilization. */
+  /**
+   * Host CPU and memory utilization.
+   *
+   * Operator-only: served by the browser server itself, not by the per-user API.
+   * Point `hostUrl` straight at a browser server — against the dashboard this
+   * 404s.
+   */
   async getServerMetrics(): Promise<GetServerMetricsResponse> {
     return this.request<GetServerMetricsResponse>("/metrics");
   }
 
-  /** Paginated, sortable resource usage for every active browser. */
+  /**
+   * Paginated, sortable resource usage for your live browsers.
+   *
+   * Reports what is actually running on the host right now, so it's the way to
+   * spot a session you started and never stopped. Against the dashboard the
+   * result is scoped to the token's owner; against a browser server directly it
+   * covers every browser on that host.
+   */
   async getBrowserMetrics(
     params: BrowserMetricsParams = {},
   ): Promise<GetBrowserMetricsResponse> {
