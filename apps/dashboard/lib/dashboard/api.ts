@@ -1,5 +1,7 @@
 import type {
+  BrowserContextRecord,
   BrowserSessionRecord,
+  CreateBrowserContextBody,
   GetBrowserResponse,
   GetRecordingUrlResponse,
   RecordingEvent,
@@ -91,6 +93,26 @@ export const dashboardApi = {
   },
   getBrowser(id: string) {
     return call<GetBrowserResponse>(`/browser/${encodeURIComponent(id)}`);
+  },
+
+  // --- Contexts ---------------------------------------------------------
+  // Same-origin and session-scoped, so these only ever see the signed-in
+  // user's own contexts — the routes filter by userId server-side.
+  listContexts() {
+    return call<{ contexts: BrowserContextRecord[] }>("/context").then(
+      (r) => r.contexts,
+    );
+  },
+  createContext(body: CreateBrowserContextBody) {
+    return call<BrowserContextRecord>("/context", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+  deleteContext(id: string) {
+    return call<{ ok: true }>(`/context/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
   },
   getRecordingUrl(id: string, opts?: { download?: boolean }) {
     const suffix = opts?.download ? "?download=1" : "";

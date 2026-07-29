@@ -9,7 +9,14 @@ Turborepo + pnpm workspaces.
 - `apps/dashboard` — Next.js app (auth + product UI) AND the public browser API.
   Tailwind v4 + shadcn/ui. Route handlers own the browser lifecycle
   (`/browser/start|stop`, `GET /browser`, `GET /browser/:id[/recording]`) and log every
-  session to the `browser_session` table, ownership-scoped by `userId`. Auth is in-process
+  session to the `browser_session` table, ownership-scoped by `userId`. It also owns
+  **contexts** (`POST|GET /context`, `GET|DELETE /context/:id`) — saved cookies +
+  localStorage replayed into later sessions. The browser server has no database, so the
+  dashboard resolves a `contextId` into the storage keys to read and write
+  (`lib/browser-contexts.ts`), takes the single-writer lease, and hands only those keys
+  over; the outcome comes back on the existing session-ended callback, which promotes the
+  new version. Each save writes a **new** key and the pointer flips only after the upload
+  lands, so a failed save can never destroy a working profile. Auth is in-process
   (better-auth session or `ob_` API token via `lib/api-auth.ts`) — no loopback HTTP. It
   drives `apps/browser-server` over its bypass-token REST surface (`lib/browser-server.ts`,
   raw `node:http` so it can override `Host`). `GET /browser/metrics` is **never a passthrough**
@@ -29,9 +36,9 @@ Turborepo + pnpm workspaces.
   place to grow a dedicated API service later.
 - `packages/ui` (`@repo/ui`) — shared shadcn component library + the Tailwind theme.
 - `packages/db` (`@repo/db`) — drizzle schema + client (Postgres). Holds the better-auth
-  tables plus `api_token` (hashed token secrets) and `browser_session` (session log;
-  `status` is typed text, not a pg enum). Mint tokens via `mintApiToken` (never insert
-  `api_token` rows directly).
+  tables plus `api_token` (hashed token secrets), `browser_session` (session log;
+  `status` is typed text, not a pg enum) and `browser_context` (saved browser
+  profiles). Mint tokens via `mintApiToken` (never insert `api_token` rows directly).
 - `packages/crypto` (`@repo/crypto`) — API-token helpers: `generateApiToken` (mint a
   random `ob_…` secret + its hash) and `hashApiToken` (SHA-256, for lookup).
 - `packages/types`, `packages/logger`, `packages/eslint-config`, `packages/typescript-config`.

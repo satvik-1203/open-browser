@@ -1,3 +1,4 @@
+import type { FingerprintOptions } from "./fingerprint";
 import type { RecordingInfo } from "./recording";
 
 export interface ProxyOptions {
@@ -23,13 +24,59 @@ export interface StartBrowserOptions {
   url?: string;
   initialCookie?: CookieData[];
   localstorage?: Record<string, string>;
+  /**
+   * @deprecated Use `fingerprint.userAgent`. A bare UA override contradicts the
+   * client hints the browser still sends; `fingerprint` keeps them coherent.
+   * Still honoured, and treated as `fingerprint.userAgent` when that is unset.
+   */
   userAgent?: string;
+  /**
+   * Browser identity (UA + client hints + languages + timezone). When the
+   * session loads a context, the context's stored fingerprint is used and this
+   * is ignored — a context has to present the same browser every time.
+   */
+  fingerprint?: FingerprintOptions;
   proxy?: ProxyOptions;
+  /**
+   * Load cookies + localStorage from this context before the session starts.
+   * The context's pinned proxy and fingerprint are applied with it.
+   */
+  contextId?: string;
+  /**
+   * Save the session's cookies + localStorage back to `contextId` when it ends.
+   * Defaults to false: without it the session is a read-only fork of the
+   * context and can run alongside others on the same context.
+   */
+  persistContext?: boolean;
   /**
    * Record the tab and store it when the session ends. Storage is configured on
    * the server; recording fails if the server has no storage configured.
    */
   record?: boolean;
+}
+
+/**
+ * Context wiring resolved by the backend and handed to the browser server,
+ * which has no database of its own. The backend owns the context row, holds
+ * the write lease, and picks both keys up front so the browser server only ever
+ * does storage I/O.
+ */
+export interface ResolvedContext {
+  id: string;
+  /** Snapshot to hydrate from. Absent for a context that has never been saved. */
+  loadKey?: string;
+  /**
+   * Key to write the end-of-session snapshot to. Absent for a read-only
+   * session, which is what makes concurrent readers on one context safe.
+   */
+  saveKey?: string;
+}
+
+/** What the backend actually POSTs to the browser server's `/browser/start`. */
+export interface StartBrowserPayload extends Omit<StartBrowserOptions, "contextId" | "persistContext"> {
+  /** Minted by the backend so a failed start is still logged. */
+  id?: string;
+  context?: ResolvedContext;
 }
 
 export interface StartBrowserResponse {

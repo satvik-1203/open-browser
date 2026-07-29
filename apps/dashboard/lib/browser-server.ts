@@ -6,7 +6,7 @@ import type {
   GetBrowserMetricsResponse,
   GetBrowserResponse,
   GetRecordingUrlResponse,
-  StartBrowserOptions,
+  StartBrowserPayload,
   StartBrowserResponse,
   StopBrowserResponse,
 } from "@repo/types";
@@ -140,7 +140,7 @@ function requestRaw(
 
 /** Typed client for the browser server's REST surface. */
 export const browserServer = {
-  start(options: StartBrowserOptions & { id: string }) {
+  start(options: StartBrowserPayload & { id: string }) {
     return request<StartBrowserResponse>("POST", "/browser/start", options);
   },
   stop(id: string) {

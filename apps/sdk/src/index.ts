@@ -1,11 +1,17 @@
 export { BrowserServer, type BrowserMetricsParams } from "@/client";
 export { BrowserServerError } from "@/errors";
 export type {
+  BrowserContextRecord,
+  BrowserContextStatus,
   BrowserMetrics,
   BrowserMetricsSortField,
   BrowserServerOptions,
   CookieData,
+  CreateBrowserContextBody,
+  FingerprintOptions,
   GetBrowserMetricsResponse,
+  ListBrowserContextsResponse,
+  OriginStorage,
   GetBrowserResponse,
   GetRecordingUrlResponse,
   GetServerMetricsResponse,
@@ -19,4 +25,5 @@ export type {
   StartBrowserOptions,
   StartBrowserResponse,
   StopBrowserResponse,
+  StorageState,
 } from "@/types";

@@ -1,8 +1,11 @@
 import { BrowserServerError } from "@/errors";
 import type {
+  BrowserContextRecord,
   BrowserMetricsSortField,
   BrowserServerOptions,
+  CreateBrowserContextBody,
   GetBrowserMetricsResponse,
+  ListBrowserContextsResponse,
   GetBrowserResponse,
   GetRecordingUrlResponse,
   GetServerMetricsResponse,
@@ -28,12 +31,66 @@ export class BrowserServer {
     this.apiToken = options.apiToken;
   }
 
+  /**
+   * Start a browser.
+   *
+   * Pass `contextId` to boot it with a saved profile's cookies and localStorage
+   * — the session picks up wherever that profile left off, so an agent logs in
+   * once rather than every run. Add `persistContext: true` to save changes back
+   * when the session ends; without it the session is a read-only fork and any
+   * number can run against the same context at once.
+   */
   async start(
     options: StartBrowserOptions = {},
   ): Promise<StartBrowserResponse> {
     return this.request<StartBrowserResponse>("/browser/start", {
       method: "POST",
       body: options,
+    });
+  }
+
+  /**
+   * Create an empty context.
+   *
+   * It starts with no saved state, so the first session that loads it gets a
+   * clean browser. The intended flow is: create it, run one session with
+   * `persistContext: true` and log in there, then every later session that
+   * passes the same `contextId` inherits that login.
+   *
+   * Pin `proxy` and `fingerprint` here rather than per-session. Providers that
+   * fingerprint tie a login to the network and browser identity it was created
+   * on, so a profile whose exit IP or user agent changes between runs gets
+   * challenged — which is exactly what those checks are looking for.
+   */
+  async createContext(
+    body: CreateBrowserContextBody = {},
+  ): Promise<BrowserContextRecord> {
+    return this.request<BrowserContextRecord>("/context", {
+      method: "POST",
+      body,
+    });
+  }
+
+  /** Every context belonging to the token's owner. */
+  async listContexts(): Promise<BrowserContextRecord[]> {
+    const { contexts } =
+      await this.request<ListBrowserContextsResponse>("/context");
+    return contexts;
+  }
+
+  async getContext(id: string): Promise<BrowserContextRecord> {
+    return this.request<BrowserContextRecord>(
+      `/context/${encodeURIComponent(id)}`,
+    );
+  }
+
+  /**
+   * Delete a context. Throws `BrowserServerError` (409) while a session is
+   * still writing to it — stop that session first.
+   */
+  async deleteContext(id: string): Promise<void> {
+    await this.request(`/context/${encodeURIComponent(id)}`, {
+      method: "DELETE",
     });
   }
 

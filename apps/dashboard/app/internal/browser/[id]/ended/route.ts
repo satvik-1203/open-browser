@@ -8,6 +8,7 @@ import type {
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+import { settleContext } from "@/lib/browser-contexts";
 import { isValidCallback } from "@/lib/callback-auth";
 
 export const runtime = "nodejs";
@@ -32,8 +33,9 @@ export async function POST(
   }
 
   const { id } = await params;
-  const { status, recording } = ((await request.json().catch(() => ({}))) ??
-    {}) as SessionEndedPayload;
+  const { status, recording, context } = ((await request
+    .json()
+    .catch(() => ({}))) ?? {}) as SessionEndedPayload;
 
   if (!END_STATUSES.includes(status)) {
     return NextResponse.json({ error: "bad request" }, { status: 400 });
@@ -56,6 +58,10 @@ export async function POST(
     logger.warn("session-ended callback for unknown session", { id, status });
     return NextResponse.json({ error: "browser not found" }, { status: 404 });
   }
+
+  // Promote the snapshot the session just wrote (or record why it didn't) and
+  // release the write lease. Only sessions that held the lease report this.
+  if (context) await settleContext(id, context);
 
   logger.info("session-ended callback settled row", {
     id,

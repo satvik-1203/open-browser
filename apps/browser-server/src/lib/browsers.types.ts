@@ -12,6 +12,21 @@ export interface BrowserSession {
   targetId: string;
   /** When the session was created (epoch milliseconds). */
   createdAt: number;
+  /**
+   * Context this session loaded, present only when one was requested. `saveKey`
+   * is set only for the session holding the context's write lease; without it
+   * teardown skips the snapshot, which is what makes read-only forks safe to
+   * run several at a time against one context.
+   */
+  context?: {
+    id: string;
+    saveKey?: string;
+    /**
+     * Origins seeded at start. Carried so teardown can re-read them even if the
+     * session navigated away, instead of silently dropping them.
+     */
+    origins: Set<string>;
+  };
   /** Active tab recorder, present only when the session was started with `record`. */
   recorder?: Recorder;
   /** Current recording state, surfaced on get()/stop(). */

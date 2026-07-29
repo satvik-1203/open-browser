@@ -9,10 +9,16 @@ export interface BrowserServerOptions {
 }
 
 export type {
+  BrowserContextRecord,
+  BrowserContextStatus,
   BrowserMetrics,
   BrowserMetricsSortField,
   CookieData,
+  CreateBrowserContextBody,
+  FingerprintOptions,
   GetBrowserMetricsResponse,
+  ListBrowserContextsResponse,
+  OriginStorage,
   GetBrowserResponse,
   GetRecordingUrlResponse,
   GetServerMetricsResponse,
@@ -26,4 +32,5 @@ export type {
   StartBrowserOptions,
   StartBrowserResponse,
   StopBrowserResponse,
+  StorageState,
 } from "@repo/types";
