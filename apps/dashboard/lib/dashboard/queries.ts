@@ -13,6 +13,7 @@ import {
 } from "./token-actions";
 import type {
   BrowserSessionRecord,
+  CreateBrowserContextBody,
   StartBrowserOptions,
 } from "./types";
 
@@ -28,6 +29,7 @@ export const qk = {
   recordingUrl: (id: string) => ["recording-url", id] as const,
   recordingEvents: (id: string) => ["recording-events", id] as const,
   tokens: ["tokens"] as const,
+  contexts: ["contexts"] as const,
 };
 
 // --- Browsers ------------------------------------------------------------
@@ -186,5 +188,43 @@ export function useRevokeToken() {
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.tokens }),
+  });
+}
+
+// --- Contexts ------------------------------------------------------------
+
+/**
+ * The user's saved browser profiles. Polls while any context is mid-save so the
+ * version and size settle live — a save runs in the background after its
+ * session ends, so the row is briefly `saving` with no user action to trigger a
+ * refetch.
+ */
+export function useContextsQuery() {
+  return useQuery({
+    queryKey: qk.contexts,
+    queryFn: () => dashboardApi.listContexts(),
+    refetchInterval: (query) =>
+      query.state.data?.some(
+        (context) => context.status === "saving" || context.inUseBy !== null,
+      )
+        ? 5000
+        : false,
+  });
+}
+
+export function useCreateContext() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateBrowserContextBody) =>
+      dashboardApi.createContext(body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.contexts }),
+  });
+}
+
+export function useDeleteContext() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => dashboardApi.deleteContext(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.contexts }),
   });
 }

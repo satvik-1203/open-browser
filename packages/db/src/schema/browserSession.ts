@@ -2,6 +2,7 @@ import type { BrowserSessionStatus, StartBrowserOptions } from "@repo/types";
 import { index, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 import { apiToken } from "./apiToken";
+import { browserContext } from "./browserContext";
 import { user } from "./auth";
 
 /**
@@ -32,6 +33,15 @@ export const browserSession = pgTable(
       .$type<BrowserSessionStatus>()
       .notNull()
       .default("starting"),
+    // Which context this session loaded, if any. `set null` on delete: the
+    // session log is history and outlives the profile it used.
+    contextId: text("context_id").references(() => browserContext.id, {
+      onDelete: "set null",
+    }),
+    // Whether this session held the context's write lease. A read-only session
+    // (the default) is a fork — it loads the snapshot and never saves back,
+    // which is what lets several run against one context at once.
+    contextPersist: text("context_persist").$type<"read" | "write">(),
     options: jsonb("options").$type<StartBrowserOptions>(),
     recordingStatus: text("recording_status"),
     errorMessage: text("error_message"),

@@ -1,16 +1,19 @@
 import { randomUUID } from "node:crypto";
 import { logger } from "@repo/logger";
-import type { StartBrowserOptions } from "@repo/types";
+import type { StartBrowserPayload } from "@repo/types";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { sessions } from "@/lib/browsers";
 import type { BrowserSession } from "@/lib/browsers.types";
 import {
+  ContextNotStoredError,
   LocalStorageRequiresUrlError,
   RecordingNotConfiguredError,
 } from "@/services/browser/errors";
+import { installFingerprint } from "@/services/browser/fingerprint";
 import { handleSessionEnd } from "@/services/browser/handleSessionEnd";
 import type { StartBrowserResult } from "@/services/browser/types";
+import { loadSnapshot, restoreState } from "@/services/context/index";
 import { startRecording } from "@/services/recording/index";
 import { isStorageConfigured } from "@/services/storage/index";
 
@@ -20,7 +23,7 @@ import { isStorageConfigured } from "@/services/storage/index";
 puppeteer.use(StealthPlugin());
 
 export async function startBrowser(
-  options: StartBrowserOptions,
+  options: StartBrowserPayload,
   id: string = randomUUID(),
 ): Promise<StartBrowserResult> {
   const {
@@ -32,7 +35,9 @@ export async function startBrowser(
     initialCookie,
     localstorage,
     userAgent,
+    fingerprint,
     proxy,
+    context,
     record,
   } = options;
 
@@ -46,6 +51,16 @@ export async function startBrowser(
       "recording is not configured on this server",
     );
   }
+  if (context && !isStorageConfigured()) {
+    throw new ContextNotStoredError(
+      "contexts are not configured on this server",
+    );
+  }
+
+  // The legacy top-level `userAgent` is the same knob as `fingerprint.userAgent`
+  // — fold it in so both paths produce one coherent identity rather than a UA
+  // that contradicts the client hints.
+  const identity = fingerprint ?? (userAgent ? { userAgent } : undefined);
 
   const sandboxArgs =
     process.env.PUPPETEER_NO_SANDBOX === "true"
@@ -61,6 +76,9 @@ export async function startBrowser(
     args: [
       "--disable-dev-shm-usage",
       "--disable-blink-features=AutomationControlled",
+      // Chrome bakes its UI language into some surfaces before any CDP override
+      // can run, so the launch flag has to agree with the emulated locale.
+      `--lang=${identity?.languages?.[0] ?? identity?.locale ?? "en-US"}`,
       ...sandboxArgs,
       ...(proxy ? [`--proxy-server=${proxy.server}`] : []),
     ],
@@ -77,7 +95,30 @@ export async function startBrowser(
       password: proxy.password ?? "",
     });
   }
-  if (userAgent) await page.setUserAgent({ userAgent });
+  // Before anything navigates: the identity has to be in place for the very
+  // first request, and a context has to be hydrated before the site it belongs
+  // to gets a chance to decide the browser is logged out.
+  await installFingerprint(browser, identity);
+
+  const contextOrigins = new Set<string>();
+  if (context?.loadKey) {
+    const snapshot = await loadSnapshot(context.loadKey);
+    if (snapshot) {
+      for (const origin of await restoreState(browser, snapshot)) {
+        contextOrigins.add(origin);
+      }
+    } else {
+      // The row pointed at a key that isn't there. Start clean rather than
+      // fail — the caller gets a usable browser and the next save repairs it.
+      logger.warn("context snapshot missing; starting clean", {
+        id,
+        contextId: context.id,
+        key: context.loadKey,
+      });
+    }
+  }
+
+  // After the context, so an explicitly-passed cookie overrides the stored one.
   if (initialCookie?.length) await browser.setCookie(...initialCookie);
   if (url) await page.goto(url);
   if (localstorage) {
@@ -98,6 +139,14 @@ export async function startBrowser(
     targetId: targetInfo.targetId,
     createdAt: Date.now(),
   };
+
+  if (context) {
+    session.context = {
+      id: context.id,
+      saveKey: context.saveKey,
+      origins: contextOrigins,
+    };
+  }
 
   if (record) {
     session.recorder = await startRecording(page);

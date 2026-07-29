@@ -7,6 +7,7 @@ import {
   MonitorPlay,
   PanelLeftClose,
   PanelLeftOpen,
+  UserRoundCheck,
   Video,
 } from "lucide-react";
 import Link from "next/link";
@@ -37,6 +38,12 @@ const NAV: NavItem[] = [
     label: "Recordings",
     icon: Video,
     isActive: (p) => p.startsWith("/recordings"),
+  },
+  {
+    href: "/contexts",
+    label: "Contexts",
+    icon: UserRoundCheck,
+    isActive: (p) => p.startsWith("/contexts"),
   },
   {
     href: "/keys",

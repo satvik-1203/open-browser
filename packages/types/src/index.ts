@@ -4,18 +4,31 @@ export type {
   GetBrowserResponse,
   GetRecordingUrlResponse,
   ProxyOptions,
+  ResolvedContext,
   StartBrowserOptions,
+  StartBrowserPayload,
   StartBrowserResponse,
   StopBrowserResponse,
 } from "./browser";
+export { BROWSER_CONTEXT_STATUSES } from "./browserContext";
+export type {
+  BrowserContextRecord,
+  BrowserContextStatus,
+  CreateBrowserContextBody,
+  ListBrowserContextsResponse,
+  OriginStorage,
+  StorageState,
+} from "./browserContext";
 export { BROWSER_SESSION_STATUSES } from "./browserSession";
 export type {
   BrowserSessionEndStatus,
+  ContextSaveResult,
   BrowserSessionRecord,
   BrowserSessionStatus,
   ListBrowsersResponse,
   SessionEndedPayload,
 } from "./browserSession";
+export type { FingerprintOptions, ResolvedFingerprint } from "./fingerprint";
 export type {
   BrowserMetrics,
   BrowserMetricsSortField,

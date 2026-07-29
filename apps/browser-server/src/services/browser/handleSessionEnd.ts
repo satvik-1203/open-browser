@@ -4,6 +4,7 @@ import type { BrowserSessionEndStatus } from "@repo/types";
 import { sessions } from "@/lib/browsers";
 import type { BrowserSession } from "@/lib/browsers.types";
 import { finalizeRecording } from "@/services/browser/finalizeRecording";
+import { persistContext } from "@/services/browser/persistContext";
 import { notifySessionEnded } from "@/services/callback/notifyBackend";
 
 interface HandleSessionEndOptions {
@@ -35,6 +36,11 @@ export async function handleSessionEnd(
   if (session.endHandled) return;
   session.endHandled = true;
 
+  // Before finalizeRecording, which closes the browser the moment the capture
+  // is drained: reading localStorage needs a live document, so the context
+  // snapshot has to be taken while the browser is still up.
+  const context = await persistContext(session);
+
   // Never let a recording-finalization failure abort teardown: if it threw, the
   // session would linger in the map (a zombie) and the backend would never get
   // the end callback. Finalize is best-effort; deletion + notify must still run.
@@ -55,6 +61,7 @@ export async function handleSessionEnd(
   const delivery = notifySessionEnded(session.id, {
     status,
     recording: session.recording,
+    context,
   });
   if (flush) await delivery;
 }

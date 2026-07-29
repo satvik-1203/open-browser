@@ -1,6 +1,8 @@
 import type {
   ActionRecordingEvent,
+  BrowserContextRecord,
   BrowserSessionRecord,
+  CreateBrowserContextBody,
   ConsoleRecordingEvent,
   GetBrowserResponse,
   GetRecordingUrlResponse,
@@ -29,12 +31,18 @@ export interface CreatedApiToken {
   createdAt: string;
 }
 
-/** The three management sections rendered in the sidebar. */
-export type DashboardSection = "keys" | "browsers" | "recordings";
+/** The management sections rendered in the sidebar. */
+export type DashboardSection =
+  | "keys"
+  | "browsers"
+  | "recordings"
+  | "contexts";
 
 export type {
   ActionRecordingEvent,
+  BrowserContextRecord,
   BrowserSessionRecord,
+  CreateBrowserContextBody,
   ConsoleRecordingEvent,
   GetBrowserResponse,
   GetRecordingUrlResponse,

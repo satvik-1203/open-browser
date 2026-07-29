@@ -39,6 +39,33 @@ export async function POST(request: Request) {
     .where(inArray(schema.browserSession.status, [...ACTIVE_STATUSES]))
     .returning({ id: schema.browserSession.id });
 
+  // Those sessions died without sending a session-ended callback, so any write
+  // lease they held is now permanently unreleasable — the context would be
+  // unwritable until its TTL ran out. Their snapshots were never written, so
+  // the contexts keep their previous version.
+  if (settled.length) {
+    const freed = await db
+      .update(schema.browserContext)
+      .set({
+        leaseSessionId: null,
+        leaseExpiresAt: null,
+        leaseSaveKey: null,
+        updatedAt: new Date(),
+      })
+      .where(
+        inArray(
+          schema.browserContext.leaseSessionId,
+          settled.map((row) => row.id),
+        ),
+      )
+      .returning({ id: schema.browserContext.id });
+    if (freed.length) {
+      logger.warn("released context leases orphaned by restart", {
+        contextIds: freed.map((row) => row.id),
+      });
+    }
+  }
+
   logger.warn("browser server restarted; reconciled orphaned sessions", {
     reconciled: settled.length,
     ids: settled.map((row) => row.id),
