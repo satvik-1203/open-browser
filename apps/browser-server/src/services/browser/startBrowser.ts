@@ -13,7 +13,11 @@ import {
 import { installFingerprint } from "@/services/browser/fingerprint";
 import { handleSessionEnd } from "@/services/browser/handleSessionEnd";
 import type { StartBrowserResult } from "@/services/browser/types";
-import { loadSnapshot, restoreState } from "@/services/context/index";
+import {
+  captureCookies,
+  loadSnapshot,
+  restoreState,
+} from "@/services/context/index";
 import { startRecording } from "@/services/recording/index";
 import { isStorageConfigured } from "@/services/storage/index";
 
@@ -108,9 +112,26 @@ export async function startBrowser(
   if (context?.loadKey) {
     const snapshot = await loadSnapshot(context.loadKey);
     if (snapshot) {
-      contextBase = snapshot;
-      for (const origin of await restoreState(browser, snapshot)) {
-        contextOrigins.add(origin);
+      const restoredOrigins = await restoreState(browser, snapshot);
+      for (const origin of restoredOrigins) contextOrigins.add(origin);
+
+      // Re-read the cookies the browser actually ended up with, rather than
+      // trusting the snapshot we handed it. Chrome silently drops cookies it
+      // won't accept, and a base claiming cookies that were never really there
+      // makes teardown compute them as *deletions* — a failed restore would
+      // then erase the very login it was supposed to reuse. One CDP call.
+      contextBase = {
+        cookies: await captureCookies(browser),
+        origins: snapshot.origins.filter((o) => restoredOrigins.includes(o.origin)),
+      };
+      const dropped = snapshot.cookies.length - contextBase.cookies.length;
+      if (dropped > 0) {
+        logger.warn("browser rejected some restored cookies", {
+          id,
+          contextId: context.id,
+          expected: snapshot.cookies.length,
+          actual: contextBase.cookies.length,
+        });
       }
     } else {
       // The row pointed at a key that isn't there. Start clean rather than

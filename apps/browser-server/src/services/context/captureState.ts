@@ -37,25 +37,18 @@ async function openOrigins(browser: Browser): Promise<Map<string, Page>> {
 }
 
 /**
- * Snapshot the browser's cookies + localStorage in Playwright `storageState`
- * shape.
+ * Every cookie the browser currently holds, in storage shape.
  *
- * Cookies come from the browser-level CDP call, so httpOnly and `Secure`
- * cookies are included — which is the whole ballgame, since that's where every
- * real session token lives (Google's `__Secure-1PSID`, and so on).
+ * From the browser-level CDP call, so httpOnly and `Secure` cookies are
+ * included — which is the whole ballgame, since that's where every real session
+ * token lives (Google's `__Secure-1PSID`, and so on).
  *
- * localStorage is gathered from origins with a live document, plus `extra` —
- * the origins this session restored at start. Without that second set, a
- * session that loaded a context and then navigated away would save back a
- * snapshot missing the very origins it was created to remember.
- *
- * Safe to call on a running browser; nothing here closes or disturbs it.
+ * Also the honest answer to "what did this session actually start with", which
+ * is why the merge base is taken from here rather than from the snapshot we
+ * *meant* to restore.
  */
-export async function captureState(
-  browser: Browser,
-  extra: Iterable<string> = [],
-): Promise<StorageState> {
-  const cookies: CookieData[] = (await browser.cookies()).map((cookie) => ({
+export async function captureCookies(browser: Browser): Promise<CookieData[]> {
+  return (await browser.cookies()).map((cookie) => ({
     name: cookie.name,
     value: cookie.value,
     domain: cookie.domain,
@@ -72,6 +65,24 @@ export async function captureState(
     // cookies rather than as cookies that expired in 1969.
     ...(cookie.expires > 0 ? { expires: cookie.expires } : {}),
   }));
+}
+
+/**
+ * Snapshot the browser's cookies + localStorage in Playwright `storageState`
+ * shape.
+ *
+ * localStorage is gathered from origins with a live document, plus `extra` —
+ * the origins this session restored at start. Without that second set, a
+ * session that loaded a context and then navigated away would save back a
+ * snapshot missing the very origins it was created to remember.
+ *
+ * Safe to call on a running browser; nothing here closes or disturbs it.
+ */
+export async function captureState(
+  browser: Browser,
+  extra: Iterable<string> = [],
+): Promise<StorageState> {
+  const cookies = await captureCookies(browser);
 
   const live = await openOrigins(browser);
   const targets = new Set<string>(live.keys());
