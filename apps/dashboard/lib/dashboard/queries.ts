@@ -205,7 +205,7 @@ export function useContextsQuery() {
     queryFn: () => dashboardApi.listContexts(),
     refetchInterval: (query) =>
       query.state.data?.some(
-        (context) => context.status === "saving" || context.inUseBy !== null,
+        (context) => context.status === "saving" || context.writers > 0,
       )
         ? 5000
         : false,

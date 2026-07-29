@@ -99,9 +99,10 @@ export function BrowsersList() {
     contextId === NO_CONTEXT
       ? null
       : (contexts.find((c) => c.id === contextId) ?? null);
-  // Only one session may write a context at a time; readers can stack. Offer
-  // "save changes back" only while the write lease is actually free.
-  const persistBlocked = selected?.inUseBy != null;
+  // Several sessions may write to one context at once — each saves back only
+  // what it changed, merged onto the current version — so writing is never
+  // blocked. The count is shown as a heads-up, not a restriction.
+  const otherWriters = selected?.writers ?? 0;
 
   const live = browsers.data
     ? browsers.data.sessions.filter((s) => ACTIVE.has(s.status))
@@ -122,7 +123,7 @@ export function BrowsersList() {
         ...(selected
           ? {
               contextId: selected.id,
-              persistContext: persist && !persistBlocked,
+              persistContext: persist,
             }
           : {}),
       });
@@ -196,7 +197,7 @@ export function BrowsersList() {
                     </span>
                     <span className="text-muted-foreground text-xs">
                       v{context.version}
-                      {context.inUseBy ? " · in use" : ""}
+                      {context.writers > 0 ? ` · ${context.writers} writing` : ""}
                     </span>
                   </SelectItem>
                 ))}
@@ -215,23 +216,23 @@ export function BrowsersList() {
 
             <label
               className={`mt-1 flex items-start gap-2 text-sm ${
-                selected && !persistBlocked
-                  ? ""
-                  : "text-muted-foreground cursor-not-allowed"
+                selected ? "" : "text-muted-foreground cursor-not-allowed"
               }`}
             >
               <input
                 type="checkbox"
                 className="accent-primary mt-0.5 size-4"
-                checked={persist && !persistBlocked}
-                disabled={!selected || persistBlocked}
+                checked={persist}
+                disabled={!selected}
                 onChange={(e) => setPersist(e.target.checked)}
               />
               <span>
                 Save changes back to this context when the session ends
-                {persistBlocked && (
+                {persist && otherWriters > 0 && (
                   <span className="block text-xs">
-                    Another session is writing to it — this one runs read-only.
+                    {otherWriters} other session{otherWriters === 1 ? " is" : "s are"} also
+                    writing — changes are merged, but the same site signed in twice
+                    may still sign you out.
                   </span>
                 )}
               </span>

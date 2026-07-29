@@ -66,10 +66,13 @@ export interface ResolvedContext {
   /** Snapshot to hydrate from. Absent for a context that has never been saved. */
   loadKey?: string;
   /**
-   * Key to write the end-of-session snapshot to. Absent for a read-only
-   * session, which is what makes concurrent readers on one context safe.
+   * Whether this session writes its changes back when it ends. Several writers
+   * on one context are allowed: each writes back only what it changed relative
+   * to the snapshot it loaded, merged onto the current version. The write key
+   * is chosen at save time, not here — by then other sessions may have moved
+   * the context forward.
    */
-  saveKey?: string;
+  persist?: boolean;
 }
 
 /** What the backend actually POSTs to the browser server's `/browser/start`. */

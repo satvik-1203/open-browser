@@ -7,12 +7,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { getAuthedUser } from "@/lib/api-auth";
-import {
-  acquireContext,
-  ContextInUseError,
-  findOwnedContext,
-  releaseContext,
-} from "@/lib/browser-contexts";
+import { acquireContext, findOwnedContext } from "@/lib/browser-contexts";
 import { browserServer } from "@/lib/browser-server";
 import { markStartFailed, redactOptions } from "@/lib/browser-sessions";
 
@@ -42,14 +37,9 @@ export async function POST(request: Request) {
     if (!row) {
       return NextResponse.json({ error: "context not found" }, { status: 404 });
     }
-    try {
-      context = await acquireContext(row, id, options.persistContext === true);
-    } catch (error) {
-      if (error instanceof ContextInUseError) {
-        return NextResponse.json({ error: error.message }, { status: 409 });
-      }
-      throw error;
-    }
+    // Never refused: several sessions may write to one context, and their
+    // changes are merged rather than overwriting each other.
+    context = acquireContext(row, options.persistContext === true);
     // The context's pinned identity wins over per-session options: a profile
     // that changes browser or exit IP between runs is what gets it challenged.
     if (row.proxy) options.proxy = { ...row.proxy, ...options.proxy };
@@ -62,7 +52,7 @@ export async function POST(request: Request) {
     apiTokenId: authed.apiTokenId,
     status: "starting",
     contextId: context?.id ?? null,
-    contextPersist: context ? (context.saveKey ? "write" : "read") : null,
+    contextPersist: context ? (context.persist ? "write" : "read") : null,
     options: redactOptions(options),
     recordingStatus: options.record ? "recording" : "none",
   });
@@ -83,10 +73,6 @@ export async function POST(request: Request) {
         status,
         error,
       });
-      // The browser never launched, so nothing will ever send the session-ended
-      // callback that normally releases the lease. Drop it here or the context
-      // stays unwritable until the TTL expires hours from now.
-      if (context?.saveKey) await releaseContext(context.id, id);
       await markStartFailed(id, error);
       return NextResponse.json(body, { status });
     }
@@ -103,7 +89,6 @@ export async function POST(request: Request) {
       id,
       error: error instanceof Error ? error.message : String(error),
     });
-    if (context?.saveKey) await releaseContext(context.id, id);
     await markStartFailed(id, "bad gateway");
     return NextResponse.json({ error: "bad gateway" }, { status: 502 });
   }

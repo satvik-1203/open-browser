@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { logger } from "@repo/logger";
-import type { StartBrowserPayload } from "@repo/types";
+import type { StartBrowserPayload, StorageState } from "@repo/types";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { sessions } from "@/lib/browsers";
@@ -101,9 +101,14 @@ export async function startBrowser(
   await installFingerprint(browser, identity);
 
   const contextOrigins = new Set<string>();
+  // The merge base: what this session started from. Teardown diffs against it
+  // to isolate this session's own changes. An empty base is correct for a
+  // context with no snapshot yet — everything the session does is new.
+  let contextBase: StorageState = { cookies: [], origins: [] };
   if (context?.loadKey) {
     const snapshot = await loadSnapshot(context.loadKey);
     if (snapshot) {
+      contextBase = snapshot;
       for (const origin of await restoreState(browser, snapshot)) {
         contextOrigins.add(origin);
       }
@@ -143,7 +148,8 @@ export async function startBrowser(
   if (context) {
     session.context = {
       id: context.id,
-      saveKey: context.saveKey,
+      persist: context.persist === true,
+      base: contextBase,
       origins: contextOrigins,
     };
   }

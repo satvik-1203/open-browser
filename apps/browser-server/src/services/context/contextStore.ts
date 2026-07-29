@@ -3,7 +3,7 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import { logger } from "@repo/logger";
 import type { StorageState } from "@repo/types";
 
-import { getStorage } from "@/services/storage/index";
+import { getStorage, objectKey } from "@/services/storage/index";
 
 /**
  * Refuse to store a snapshot bigger than this. localStorage allows ~5-10MB per
@@ -16,6 +16,15 @@ export const MAX_SNAPSHOT_BYTES = 16 * 1024 * 1024;
 
 export class SnapshotTooLargeError extends Error {}
 
+/**
+ * Logical key for a version of a context's snapshot. The backend stores keys in
+ * this form; the storage prefix (if the server has one) is applied here, so the
+ * backend never has to know about it.
+ */
+export function contextSnapshotKey(contextId: string, version: number): string {
+  return `contexts/${contextId}/${version}.json.gz`;
+}
+
 /** Read and parse a snapshot. Returns undefined when the key isn't there. */
 export async function loadSnapshot(
   key: string,
@@ -23,7 +32,7 @@ export async function loadSnapshot(
   const storage = getStorage();
   if (!storage) return undefined;
 
-  const stream = await storage.adapter.getStream(key);
+  const stream = await storage.adapter.getStream(objectKey(storage.prefix, key));
   const chunks: Buffer[] = [];
   for await (const chunk of stream) {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string));
@@ -59,7 +68,7 @@ export async function saveSnapshot(
   }
 
   await storage.adapter.store({
-    key,
+    key: objectKey(storage.prefix, key),
     body,
     contentType: "application/json",
   });

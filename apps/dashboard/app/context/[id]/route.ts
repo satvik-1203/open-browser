@@ -4,7 +4,11 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { getAuthedUser } from "@/lib/api-auth";
-import { findOwnedContext, toContextRecord } from "@/lib/browser-contexts";
+import {
+  countWriters,
+  findOwnedContext,
+  toContextRecord,
+} from "@/lib/browser-contexts";
 
 export const runtime = "nodejs";
 
@@ -22,15 +26,16 @@ export async function GET(
   if (!row) {
     return NextResponse.json({ error: "context not found" }, { status: 404 });
   }
-  return NextResponse.json(toContextRecord(row));
+  const writers = await countWriters([row.id]);
+  return NextResponse.json(toContextRecord(row, writers.get(row.id) ?? 0));
 }
 
 /**
  * Delete a context.
  *
- * Refused while a session holds the write lease: that session will try to save
- * on teardown, and deleting out from under it would either resurrect the row or
- * strand the snapshot. Stop the session first.
+ * Refused while any live session is still set to write back: it will try to
+ * commit on teardown, and deleting out from under it would either resurrect the
+ * row or strand the snapshot. Stop those sessions first.
  *
  * The stored snapshots are intentionally left in object storage — this drops
  * the pointer, and a storage lifecycle rule reaps the orphans. Deleting a live
@@ -52,14 +57,14 @@ export async function DELETE(
     return NextResponse.json({ error: "context not found" }, { status: 404 });
   }
 
-  if (
-    row.leaseSessionId &&
-    row.leaseExpiresAt &&
-    row.leaseExpiresAt.getTime() > Date.now()
-  ) {
+  // Refused while any live session is still set to write back: it would try to
+  // commit onto a row that no longer exists. Readers don't block deletion —
+  // they never write.
+  const writers = (await countWriters([row.id])).get(row.id) ?? 0;
+  if (writers > 0) {
     return NextResponse.json(
       {
-        error: `context is in use by session ${row.leaseSessionId}; stop it first`,
+        error: `${writers} running session${writers === 1 ? "" : "s"} still writing to this context; stop them first`,
       },
       { status: 409 },
     );

@@ -48,20 +48,11 @@ export const browserContext = pgTable(
     /** Redacted like `browser_session.options` — no proxy password at rest. */
     proxy: jsonb("proxy").$type<ProxyOptions>(),
     fingerprint: jsonb("fingerprint").$type<FingerprintOptions>(),
-    /**
-     * Single-writer lease. Held by the session id currently allowed to save
-     * back to this context; null when free. `leaseExpiresAt` is the escape
-     * hatch — without it a crashed host would wedge the context forever, since
-     * the lease is released by the session-ended callback that a crash skips.
-     */
-    leaseSessionId: text("lease_session_id"),
-    leaseExpiresAt: timestamp("lease_expires_at"),
-    /**
-     * Key the lease holder was told to write its snapshot to. Recorded here at
-     * acquire time so settling promotes exactly the key that was handed out,
-     * rather than re-deriving it and hoping the two agree.
-     */
-    leaseSaveKey: text("lease_save_key"),
+    // No write lease: several sessions may persist to one context at once.
+    // Each writes back only what it changed relative to the snapshot it loaded,
+    // merged onto the current version, so concurrent writers don't erase each
+    // other. `version` is the concurrency control — a commit only lands if the
+    // version it merged from is still current (see `commitSnapshot`).
     errorMessage: text("error_message"),
     lastUsedAt: timestamp("last_used_at"),
     createdAt: timestamp("created_at")

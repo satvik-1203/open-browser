@@ -48,6 +48,70 @@ async function post(path: string, body?: unknown): Promise<void> {
 }
 
 /**
+ * Same auth and base URL as `post`, but for the two calls that need a reply:
+ * reading a context's current version and committing a merged snapshot. Returns
+ * the status alongside the body so the caller can act on a 409 (version
+ * conflict) rather than treating it as a generic failure.
+ */
+async function requestJson<T>(
+  method: "GET" | "POST",
+  path: string,
+  body?: unknown,
+): Promise<{ status: number; body: T | undefined } | undefined> {
+  const config = callbackConfig();
+  if (!config) return undefined;
+
+  try {
+    const res = await fetch(`${config.url}${path}`, {
+      method,
+      headers: {
+        ...(body ? { "content-type": "application/json" } : {}),
+        ...(config.token ? { [HEADER]: config.token } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(CALLBACK_TIMEOUT_MS),
+    });
+    const parsed = (await res.json().catch(() => undefined)) as T | undefined;
+    return { status: res.status, body: parsed };
+  } catch (error) {
+    logger.warn("backend request failed", {
+      path,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return undefined;
+  }
+}
+
+/** The context's current version and the key holding it. */
+export function fetchContextSlot(
+  contextId: string,
+): Promise<
+  { status: number; body: { version: number; snapshotKey: string | null } | undefined } | undefined
+> {
+  return requestJson(
+    "GET",
+    `/internal/context/${encodeURIComponent(contextId)}`,
+  );
+}
+
+/**
+ * Promote a merged snapshot. A 409 means another writer committed first and
+ * the body carries the version that won, to re-merge against.
+ */
+export function commitContextSnapshot(
+  contextId: string,
+  payload: { fromVersion: number; key: string; sizeBytes: number },
+): Promise<
+  { status: number; body: { version?: number } | undefined } | undefined
+> {
+  return requestJson(
+    "POST",
+    `/internal/context/${encodeURIComponent(contextId)}/commit`,
+    payload,
+  );
+}
+
+/**
  * Log once at boot whether backend callbacks are configured, mirroring how the
  * server reports its bypass-token and recording-storage status. When disabled,
  * session-ended/reconcile callbacks are skipped silently at runtime — the

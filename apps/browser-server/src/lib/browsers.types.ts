@@ -1,4 +1,4 @@
-import type { RecordingInfo } from "@repo/types";
+import type { RecordingInfo, StorageState } from "@repo/types";
 import type { Browser } from "puppeteer";
 import type { Recorder } from "@/services/recording/types";
 
@@ -20,7 +20,15 @@ export interface BrowserSession {
    */
   context?: {
     id: string;
-    saveKey?: string;
+    /** Whether this session writes its changes back when it ends. */
+    persist: boolean;
+    /**
+     * The snapshot this session started from — the merge base. Teardown diffs
+     * the final state against this to work out what *this* session changed, so
+     * the write-back can be merged onto whatever other sessions have committed
+     * meanwhile instead of overwriting them.
+     */
+    base: StorageState;
     /**
      * Origins seeded at start. Carried so teardown can re-read them even if the
      * session navigated away, instead of silently dropping them.

@@ -1,5 +1,5 @@
 {
-  "id": "cb9f2bab-b56c-4316-b2be-0516d5d42ced",
+  "id": "a27476a7-aaf9-4726-8ef0-6b3cdcddbbd2",
   "prevId": "cb14c484-e6b2-4325-9afc-397a9199f44f",
   "version": "7",
   "dialect": "postgresql",
@@ -471,24 +471,6 @@
         "fingerprint": {
           "name": "fingerprint",
           "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lease_session_id": {
-          "name": "lease_session_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lease_expires_at": {
-          "name": "lease_expires_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lease_save_key": {
-          "name": "lease_save_key",
-          "type": "text",
           "primaryKey": false,
           "notNull": false
         },

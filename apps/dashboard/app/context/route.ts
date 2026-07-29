@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 
 import { getAuthedUser } from "@/lib/api-auth";
 import {
+  countWriters,
   listContexts,
   redactProxy,
   toContextRecord,
@@ -23,8 +24,11 @@ export async function GET(request: Request) {
   }
 
   const rows = await listContexts(authed.userId);
+  // Writers are derived from the live session log, not stored on the row — see
+  // `countWriters`. One query for the whole page rather than one per context.
+  const writers = await countWriters(rows.map((row) => row.id));
   const body: ListBrowserContextsResponse = {
-    contexts: rows.map(toContextRecord),
+    contexts: rows.map((row) => toContextRecord(row, writers.get(row.id) ?? 0)),
   };
   return NextResponse.json(body);
 }

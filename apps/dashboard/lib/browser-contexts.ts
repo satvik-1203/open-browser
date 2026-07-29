@@ -6,20 +6,12 @@ import type {
   ProxyOptions,
   ResolvedContext,
 } from "@repo/types";
-import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, desc, inArray, sql } from "drizzle-orm";
 
 type BrowserContextRow = typeof schema.browserContext.$inferSelect;
 
-/**
- * How long a write lease stays valid without being released.
- *
- * The lease is normally released by the session-ended callback, but a browser
- * server that crashes or is killed never sends one — without an expiry the
- * context would be permanently unwritable. Set well above a realistic session
- * length: expiring early is worse than expiring late, since it would let two
- * sessions believe they can both save and quietly lose one of their updates.
- */
-const LEASE_TTL_MS = 6 * 60 * 60 * 1000;
+/** Statuses that mean a session is still live and may still write back. */
+const ACTIVE_STATUSES = ["starting", "running", "stopping"] as const;
 
 /** Storage key for a given version of a context's snapshot. */
 export function snapshotKey(contextId: string, version: number): string {
@@ -44,7 +36,7 @@ export async function findOwnedContext(
   return row;
 }
 
-/** A user's contexts, most recently used first. */
+/** A user's contexts, newest first. */
 export async function listContexts(
   userId: string,
 ): Promise<BrowserContextRow[]> {
@@ -55,136 +47,149 @@ export async function listContexts(
     .orderBy(desc(schema.browserContext.createdAt));
 }
 
-export class ContextInUseError extends Error {}
+/**
+ * How many live sessions are set to write back to each of the given contexts.
+ *
+ * Derived from the session log rather than tracked on the context row. A
+ * counter would have to be decremented by the session-ended callback, which a
+ * crashed browser server never sends — it would drift upward forever and there
+ * would be no way to tell a real writer from a leaked one.
+ */
+export async function countWriters(
+  contextIds: string[],
+): Promise<Map<string, number>> {
+  if (contextIds.length === 0) return new Map();
+  const rows = await db
+    .select({
+      contextId: schema.browserSession.contextId,
+      value: sql<number>`count(*)::int`,
+    })
+    .from(schema.browserSession)
+    .where(
+      and(
+        inArray(schema.browserSession.contextId, contextIds),
+        eq(schema.browserSession.contextPersist, "write"),
+        inArray(schema.browserSession.status, [...ACTIVE_STATUSES]),
+      ),
+    )
+    .groupBy(schema.browserSession.contextId);
+
+  return new Map(
+    rows.flatMap((row) => (row.contextId ? [[row.contextId, row.value]] : [])),
+  );
+}
 
 /**
  * Resolve a context for a starting session.
  *
- * Read-only (`persist: false`, the default) hands back only the current
- * snapshot key: the session forks the profile, never writes back, and any
- * number of them can run against one context at once.
- *
- * Write (`persist: true`) additionally takes the single-writer lease. The
- * conditional UPDATE is the whole concurrency control — the `where` clause only
- * matches when the lease is free or expired, so two simultaneous starts race in
- * the database and exactly one comes back with a row. Checking first and then
- * updating would leave a window where both saw it free.
- *
- * One writer is the rule everywhere (Browserbase warns outright that two
- * sessions on one context will get you logged out) and the reason is the sites,
- * not the storage: a provider that sees one account driving two browsers with
- * the same cookies treats it as theft and invalidates the session.
+ * Nothing is locked and nothing can be refused: any number of sessions may read
+ * the context, and any number may write back to it. The write key isn't chosen
+ * here — it's picked at save time against whatever version is current by then.
  */
-export async function acquireContext(
+export function acquireContext(
   row: BrowserContextRow,
-  sessionId: string,
   persist: boolean,
-): Promise<ResolvedContext> {
-  const loadKey = row.snapshotKey ?? undefined;
-  if (!persist) return { id: row.id, loadKey };
-
-  const now = new Date();
-  // Always a fresh key, never the one we're reading from. A save that fails
-  // partway then leaves the previous version untouched and still loadable,
-  // which is what keeps a bad save from destroying a working profile.
-  const saveKey = snapshotKey(row.id, row.version + 1);
-
-  const [claimed] = await db
-    .update(schema.browserContext)
-    .set({
-      leaseSessionId: sessionId,
-      leaseExpiresAt: new Date(now.getTime() + LEASE_TTL_MS),
-      leaseSaveKey: saveKey,
-      lastUsedAt: now,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(schema.browserContext.id, row.id),
-        or(
-          isNull(schema.browserContext.leaseSessionId),
-          lt(schema.browserContext.leaseExpiresAt, now),
-        ),
-      ),
-    )
-    .returning({ id: schema.browserContext.id });
-
-  if (!claimed) {
-    throw new ContextInUseError(
-      `context ${row.id} is already held by another session; start with persistContext: false to run a read-only copy`,
-    );
-  }
-
-  return { id: row.id, loadKey, saveKey };
+): ResolvedContext {
+  return {
+    id: row.id,
+    loadKey: row.snapshotKey ?? undefined,
+    persist,
+  };
 }
 
-/** Drop a lease we took but never handed to a running session. */
-export async function releaseContext(
+/** Where a writer should merge from: the current version and its key. */
+export async function readSlot(
   contextId: string,
-  sessionId: string,
-): Promise<void> {
-  await db
+): Promise<{ version: number; snapshotKey: string | null } | undefined> {
+  const [row] = await db
+    .select({
+      version: schema.browserContext.version,
+      snapshotKey: schema.browserContext.snapshotKey,
+    })
+    .from(schema.browserContext)
+    .where(eq(schema.browserContext.id, contextId))
+    .limit(1);
+  return row;
+}
+
+export interface CommitResult {
+  ok: boolean;
+  /** The context's version after the attempt — the one to retry against. */
+  version: number;
+}
+
+/**
+ * Promote a freshly written snapshot to be the context's current version, but
+ * only if nothing else moved it in the meantime.
+ *
+ * This is the concurrency control that replaced the lease. The writer merged
+ * its delta onto `fromVersion`; if another session committed since, that merge
+ * was against stale data and the `where version = fromVersion` clause matches
+ * nothing. The caller re-reads and merges again — its delta is still valid,
+ * only the base moved.
+ */
+export async function commitSnapshot(params: {
+  contextId: string;
+  fromVersion: number;
+  key: string;
+  sizeBytes: number;
+}): Promise<CommitResult> {
+  const { contextId, fromVersion, key, sizeBytes } = params;
+  const now = new Date();
+
+  const [row] = await db
     .update(schema.browserContext)
     .set({
-      leaseSessionId: null,
-      leaseExpiresAt: null,
-      leaseSaveKey: null,
-      updatedAt: new Date(),
+      status: "ready",
+      snapshotKey: key,
+      version: fromVersion + 1,
+      sizeBytes,
+      errorMessage: null,
+      lastUsedAt: now,
+      updatedAt: now,
     })
     .where(
       and(
         eq(schema.browserContext.id, contextId),
-        eq(schema.browserContext.leaseSessionId, sessionId),
+        eq(schema.browserContext.version, fromVersion),
       ),
-    );
+    )
+    .returning({ version: schema.browserContext.version });
+
+  if (row) return { ok: true, version: row.version };
+
+  // Lost the race. Report where the context actually is so the writer can
+  // re-merge against it.
+  const slot = await readSlot(contextId);
+  return { ok: false, version: slot?.version ?? fromVersion };
 }
 
 /**
- * Settle a context when the session holding its lease ends: promote the newly
- * written snapshot to current, or record the failure and keep the previous
- * version. Always releases the lease — a save failure must not leave the
- * context stuck unwritable.
+ * Record a failed write-back. The context keeps its current version and stays
+ * loadable — a failed save degrades a profile to "stale", never to "broken".
  */
+export async function markSaveFailed(
+  contextId: string,
+  message: string,
+): Promise<void> {
+  await db
+    .update(schema.browserContext)
+    .set({ status: "failed", errorMessage: message, updatedAt: new Date() })
+    .where(eq(schema.browserContext.id, contextId));
+}
+
+/** Apply the outcome reported on the session-ended callback. */
 export async function settleContext(
   sessionId: string,
   result: ContextSaveResult,
 ): Promise<void> {
-  const now = new Date();
-  const saved = result.saved;
-
-  await db
-    .update(schema.browserContext)
-    .set({
-      status: saved ? "ready" : "failed",
-      // Only touch the pointer on success. On failure the columns keep their
-      // current values, so the context still loads its last good snapshot.
-      ...(saved
-        ? {
-            // Promote the exact key this lease reserved, read from the row
-            // itself so the pointer can't drift from what was written.
-            snapshotKey: sql`${schema.browserContext.leaseSaveKey}`,
-            version: sql`${schema.browserContext.version} + 1`,
-            sizeBytes: result.sizeBytes ?? null,
-            errorMessage: null,
-          }
-        : { errorMessage: result.error ?? "context save failed" }),
-      leaseSessionId: null,
-      leaseExpiresAt: null,
-      leaseSaveKey: null,
-      lastUsedAt: now,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(schema.browserContext.id, result.id),
-        eq(schema.browserContext.leaseSessionId, sessionId),
-      ),
-    );
-
+  if (!result.saved) {
+    await markSaveFailed(result.id, result.error ?? "context save failed");
+  }
   logger.info("context settled", {
     contextId: result.id,
     sessionId,
-    saved,
+    saved: result.saved,
     cookies: result.cookies,
     origins: result.origins,
   });
@@ -197,19 +202,17 @@ export function redactProxy(proxy?: ProxyOptions): ProxyOptions | undefined {
 }
 
 /** Serialize a row into the user-facing API shape. */
-export function toContextRecord(row: BrowserContextRow): BrowserContextRecord {
+export function toContextRecord(
+  row: BrowserContextRow,
+  writers = 0,
+): BrowserContextRecord {
   return {
     id: row.id,
     name: row.name,
     status: row.status,
     version: row.version,
     sizeBytes: row.sizeBytes,
-    inUseBy:
-      row.leaseSessionId &&
-      row.leaseExpiresAt &&
-      row.leaseExpiresAt.getTime() > Date.now()
-        ? row.leaseSessionId
-        : null,
+    writers,
     fingerprint: row.fingerprint,
     errorMessage: row.errorMessage,
     lastUsedAt: row.lastUsedAt?.toISOString() ?? null,

@@ -44,6 +44,36 @@ export interface StorageState {
   origins: OriginStorage[];
 }
 
+/** Identity of a cookie for merge purposes — what makes two cookies "the same". */
+export interface CookieRef {
+  name: string;
+  domain: string;
+  path?: string;
+}
+
+/**
+ * What one session changed, relative to the snapshot it loaded.
+ *
+ * This is the unit that gets written back, instead of the session's whole final
+ * state. Overwriting with full state means the last session to finish silently
+ * erases every other session's work; applying a delta means two sessions that
+ * touched different sites both keep their changes.
+ *
+ * Removals are recorded explicitly — a logout has to survive the merge, and it
+ * is indistinguishable from "never had it" unless we say so.
+ */
+export interface StorageDelta {
+  cookies: {
+    upsert: CookieData[];
+    remove: CookieRef[];
+  };
+  origins: Array<{
+    origin: string;
+    upsert: Array<{ name: string; value: string }>;
+    remove: string[];
+  }>;
+}
+
 /** A user-facing context record. Never carries the snapshot itself. */
 export interface BrowserContextRecord {
   id: string;
@@ -53,8 +83,12 @@ export interface BrowserContextRecord {
   version: number;
   /** Size of the stored snapshot in bytes, or null before the first save. */
   sizeBytes: number | null;
-  /** Session currently holding the write lease, or null when free. */
-  inUseBy: string | null;
+  /**
+   * How many live sessions are currently set to write back to this context.
+   * Several are allowed — their changes are merged, not overwritten — so this
+   * is informational, not a lock.
+   */
+  writers: number;
   /** Pinned identity every session on this context presents. */
   fingerprint: FingerprintOptions | null;
   errorMessage: string | null;

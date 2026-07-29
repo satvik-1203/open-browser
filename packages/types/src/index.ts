@@ -14,9 +14,11 @@ export { BROWSER_CONTEXT_STATUSES } from "./browserContext";
 export type {
   BrowserContextRecord,
   BrowserContextStatus,
+  CookieRef,
   CreateBrowserContextBody,
   ListBrowserContextsResponse,
   OriginStorage,
+  StorageDelta,
   StorageState,
 } from "./browserContext";
 export { BROWSER_SESSION_STATUSES } from "./browserSession";

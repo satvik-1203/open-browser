@@ -41,12 +41,12 @@ function formatSize(bytes: number | null): string {
 }
 
 function StatusBadge({ context }: { context: BrowserContextRecord }) {
-  // In-use outranks the stored status: it's the state that changes what the
-  // user can do right now (no delete, no second writer).
-  if (context.inUseBy) {
+  // Live writers outrank the stored status: it's the state that explains why
+  // the version may be about to move, and why delete is unavailable.
+  if (context.writers > 0) {
     return (
       <Badge variant="secondary" className="font-normal">
-        In use
+        {context.writers} writing
       </Badge>
     );
   }
@@ -224,12 +224,12 @@ export function ContextsPanel() {
                   variant="ghost"
                   size="sm"
                   className="text-muted-foreground hover:text-destructive"
-                  // A context being written to can't be deleted; the running
-                  // session would save on top of a row that no longer exists.
-                  disabled={deleting || context.inUseBy !== null}
+                  // A context with live writers can't be deleted; they'd commit
+                  // on top of a row that no longer exists.
+                  disabled={deleting || context.writers > 0}
                   title={
-                    context.inUseBy
-                      ? `In use by session ${context.inUseBy}`
+                    context.writers > 0
+                      ? `${context.writers} running session(s) still writing`
                       : undefined
                   }
                   onClick={() => remove(context.id)}
