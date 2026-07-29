@@ -7,15 +7,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { BrowserLiveView } from "./browser-live-view";
+import { BrowserTabStrip } from "./browser-tab-strip";
 import { CopyButton } from "./copy-button";
 import { formatDateTime } from "./format";
 import { SessionStatusBadge } from "./status-badge";
-import { pageWebSocketUrl } from "@/lib/dashboard/cdp";
+import { pageWebSocketUrl, pageWebSocketUrlForTarget } from "@/lib/dashboard/cdp";
 import {
   useBrowserLive,
   useSessionRecord,
   useStopBrowser,
 } from "@/lib/dashboard/queries";
+import { useBrowserTabs } from "@/lib/dashboard/use-browser-tabs";
 
 const ACTIVE = new Set(["starting", "running", "stopping"]);
 
@@ -28,7 +30,16 @@ export function BrowserDetail({ id }: { id: string }) {
 
   const live = useBrowserLive(id, isActive);
   const info = live.data ?? null;
-  const wsUrl = info ? pageWebSocketUrl(info) : null;
+
+  const browserTabs = useBrowserTabs(info?.webSocketDebuggerUrl ?? null, isActive);
+  // Prefer the tab the user picked; fall back to the session's default target
+  // while the tab list is still loading (or if discovery failed outright, so a
+  // broken tab strip never costs us the live view).
+  const wsUrl = !info
+    ? null
+    : browserTabs.activeTargetId
+      ? pageWebSocketUrlForTarget(info, browserTabs.activeTargetId)
+      : pageWebSocketUrl(info);
 
   const stopMut = useStopBrowser();
 
@@ -85,7 +96,12 @@ export function BrowserDetail({ id }: { id: string }) {
 
       {isActive && wsUrl ? (
         <div className="w-full overflow-hidden rounded border">
-          <BrowserLiveView wsUrl={wsUrl} interactive className="w-full" />
+          <BrowserLiveView
+            wsUrl={wsUrl}
+            interactive
+            tabs={<BrowserTabStrip {...browserTabs} />}
+            className="w-full"
+          />
         </div>
       ) : (
         <div className="bg-muted text-muted-foreground flex aspect-video w-full items-center justify-center overflow-hidden rounded border text-sm">

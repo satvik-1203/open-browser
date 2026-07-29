@@ -142,6 +142,40 @@ export function pageWebSocketUrl(info: GetBrowserResponse): string | null {
   }
 }
 
+/**
+ * A page target — one browser tab. Mirrors the fields of CDP's `TargetInfo`
+ * that the tab strip needs.
+ */
+export interface BrowserTargetInfo {
+  targetId: string;
+  type: string;
+  title: string;
+  url: string;
+  attached?: boolean;
+}
+
+/**
+ * Page-target CDP WebSocket URL for an arbitrary tab in a session.
+ *
+ * The browser server routes `/devtools/page/{sessionId}/{targetId}` to that
+ * target, so switching tabs is a matter of rebuilding this URL — the session id
+ * comes from the browser endpoint, and the target id from whichever tab was
+ * picked. Returns null if the browser endpoint isn't a URL we recognize.
+ */
+export function pageWebSocketUrlForTarget(
+  info: GetBrowserResponse,
+  targetId: string,
+): string | null {
+  try {
+    const browserWs = new URL(info.webSocketDebuggerUrl);
+    const sessionId = browserWs.pathname.split("/").pop();
+    if (!sessionId) return null;
+    return `${browserWs.protocol}//${browserWs.host}/devtools/page/${sessionId}/${targetId}`;
+  } catch {
+    return null;
+  }
+}
+
 /** Screencast frame metadata (subset we use for input coordinate mapping). */
 export interface ScreencastMetadata {
   deviceWidth: number;

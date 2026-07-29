@@ -25,10 +25,17 @@ type Status = "connecting" | "streaming" | "error";
 export function BrowserLiveView({
   wsUrl,
   interactive = false,
+  tabs,
   className,
 }: {
   wsUrl: string;
   interactive?: boolean;
+  /**
+   * Tab strip rendered above the URL bar (interactive mode only). Passed in
+   * rather than built here: the tab list needs a browser-level CDP connection,
+   * and this component is deliberately bound to a single page target.
+   */
+  tabs?: React.ReactNode;
   className?: string;
 }) {
   const [status, setStatus] = useState<Status>("connecting");
@@ -83,6 +90,11 @@ export function BrowserLiveView({
       try {
         await conn.ready();
         await conn.send("Page.enable");
+        // Chrome only paints the foreground tab, so a screencast on a
+        // background one yields no frames at all. Foreground this target before
+        // starting the stream — otherwise switching to a tab that was open but
+        // idle connects successfully and then shows nothing.
+        await conn.send("Page.bringToFront").catch(() => {});
         await conn.send("Page.startScreencast", {
           format: "jpeg",
           quality: interactive ? 80 : 55,
@@ -339,6 +351,7 @@ export function BrowserLiveView({
   // Interactive (detail): URL bar on top, 16:9 controllable screencast below.
   return (
     <div className={cn("bg-card flex w-full flex-col", className)}>
+      {tabs}
       <div className="flex items-center gap-1 border-b px-2 py-1.5">
         <Button
           variant="ghost"
