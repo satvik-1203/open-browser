@@ -23,6 +23,9 @@ function readLocalStorage(): Array<{ name: string; value: string }> {
   return out;
 }
 
+/** The same read, as source, for the raw-CDP path (see `withOriginSession`). */
+const READ_LOCAL_STORAGE_EXPRESSION = `(${readLocalStorage.toString()})()`;
+
 /** Origins with a live document right now, across every open tab and frame. */
 async function openOrigins(browser: Browser): Promise<Map<string, Page>> {
   const found = new Map<string, Page>();
@@ -103,7 +106,11 @@ export async function captureState(
       const page = live.get(origin);
       const localStorage = page
         ? await page.evaluate(readLocalStorage)
-        : await withOriginPage(browser, origin, (p) => p.evaluate(readLocalStorage));
+        : await withOriginPage(browser, origin, (session) =>
+            session.evaluate<Array<{ name: string; value: string }>>(
+              READ_LOCAL_STORAGE_EXPRESSION,
+            ),
+          );
       if (localStorage.length) origins.push({ origin, localStorage });
     } catch (error) {
       // One unreadable origin must never sink the snapshot — the cookies are

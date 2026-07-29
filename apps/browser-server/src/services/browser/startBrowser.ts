@@ -12,7 +12,10 @@ import {
 } from "@/services/browser/errors";
 import { installFingerprint } from "@/services/browser/fingerprint";
 import { handleSessionEnd } from "@/services/browser/handleSessionEnd";
+import { takeWarmBrowser, warmCount } from "@/services/browser/pool";
+import { PhaseTimer, timed } from "@/services/browser/timings";
 import type { StartBrowserResult } from "@/services/browser/types";
+import { installViewport } from "@/services/browser/viewport";
 import {
   captureCookies,
   loadSnapshot,
@@ -30,6 +33,7 @@ export async function startBrowser(
   options: StartBrowserPayload,
   id: string = randomUUID(),
 ): Promise<StartBrowserResult> {
+  const timer = new PhaseTimer();
   const {
     // Headful by default — less bot-detectable, and the container runs under
     // Xvfb so a display is available. Callers can still opt into headless.
@@ -71,22 +75,50 @@ export async function startBrowser(
       ? ["--no-sandbox", "--disable-setuid-sandbox"]
       : [];
 
-  const browser = await puppeteer.launch({
+  const lang = identity?.languages?.[0] ?? identity?.locale ?? "en-US";
+
+  timer.mark("validate");
+
+  // Fetch the snapshot alongside the launch rather than after it. Both are
+  // hundreds of milliseconds and neither needs the other's result, so running
+  // them in series put the whole storage round trip on the critical path for
+  // no reason. Kicked off first so it has the launch's duration to work with.
+  const snapshotPromise = context?.loadKey
+    ? timed(timer, "snapshotLoad", () => loadSnapshot(context.loadKey as string))
+    : undefined;
+  // Never leave it unhandled: if the launch throws, nothing awaits this and an
+  // S3 failure would otherwise take the process down as an unhandled rejection.
+  snapshotPromise?.catch(() => {});
+
+  const warmBrowser = await takeWarmBrowser({
     headless,
-    defaultViewport: viewport ?? null,
-    // Drop the automation flag puppeteer adds by default; combined with the
-    // blink-feature switch below this removes the most obvious `webdriver` tells.
-    ignoreDefaultArgs: ["--enable-automation"],
-    args: [
-      "--disable-dev-shm-usage",
-      "--disable-blink-features=AutomationControlled",
-      // Chrome bakes its UI language into some surfaces before any CDP override
-      // can run, so the launch flag has to agree with the emulated locale.
-      `--lang=${identity?.languages?.[0] ?? identity?.locale ?? "en-US"}`,
-      ...sandboxArgs,
-      ...(proxy ? [`--proxy-server=${proxy.server}`] : []),
-    ],
+    lang,
+    proxyServer: proxy?.server,
   });
+
+  const browser =
+    warmBrowser ??
+    (await puppeteer.launch({
+      headless,
+      // Applied per-page by `installViewport` below instead, so that a custom
+      // viewport doesn't disqualify a request from using a warm browser.
+      defaultViewport: null,
+      // Drop the automation flag puppeteer adds by default; combined with the
+      // blink-feature switch below this removes the most obvious `webdriver` tells.
+      ignoreDefaultArgs: ["--enable-automation"],
+      args: [
+        "--disable-dev-shm-usage",
+        "--disable-blink-features=AutomationControlled",
+        // Chrome bakes its UI language into some surfaces before any CDP override
+        // can run, so the launch flag has to agree with the emulated locale.
+        `--lang=${lang}`,
+        ...sandboxArgs,
+        ...(proxy ? [`--proxy-server=${proxy.server}`] : []),
+      ],
+    }));
+
+  timer.mark("launch");
+  timer.set("warm", warmBrowser ? 1 : 0);
 
   const page = (await browser.pages())[0];
   if (!page) {
@@ -103,16 +135,20 @@ export async function startBrowser(
   // first request, and a context has to be hydrated before the site it belongs
   // to gets a chance to decide the browser is logged out.
   await installFingerprint(browser, identity);
+  if (viewport) await installViewport(browser, viewport);
+  timer.mark("fingerprint");
 
   const contextOrigins = new Set<string>();
   // The merge base: what this session started from. Teardown diffs against it
   // to isolate this session's own changes. An empty base is correct for a
   // context with no snapshot yet — everything the session does is new.
   let contextBase: StorageState = { cookies: [], origins: [] };
-  if (context?.loadKey) {
-    const snapshot = await loadSnapshot(context.loadKey);
+  if (snapshotPromise) {
+    const snapshot = await snapshotPromise;
     if (snapshot) {
-      const restoredOrigins = await restoreState(browser, snapshot);
+      const restoredOrigins = await timed(timer, "restore", () =>
+        restoreState(browser, snapshot),
+      );
       for (const origin of restoredOrigins) contextOrigins.add(origin);
 
       // Re-read the cookies the browser actually ended up with, rather than
@@ -121,14 +157,16 @@ export async function startBrowser(
       // makes teardown compute them as *deletions* — a failed restore would
       // then erase the very login it was supposed to reuse. One CDP call.
       contextBase = {
-        cookies: await captureCookies(browser),
+        cookies: await timed(timer, "rereadCookies", () =>
+          captureCookies(browser),
+        ),
         origins: snapshot.origins.filter((o) => restoredOrigins.includes(o.origin)),
       };
       const dropped = snapshot.cookies.length - contextBase.cookies.length;
       if (dropped > 0) {
         logger.warn("browser rejected some restored cookies", {
           id,
-          contextId: context.id,
+          contextId: context?.id,
           expected: snapshot.cookies.length,
           actual: contextBase.cookies.length,
         });
@@ -138,11 +176,12 @@ export async function startBrowser(
       // fail — the caller gets a usable browser and the next save repairs it.
       logger.warn("context snapshot missing; starting clean", {
         id,
-        contextId: context.id,
-        key: context.loadKey,
+        contextId: context?.id,
+        key: context?.loadKey,
       });
     }
   }
+  timer.mark("context");
 
   // After the context, so an explicitly-passed cookie overrides the stored one.
   if (initialCookie?.length) await browser.setCookie(...initialCookie);
@@ -155,9 +194,12 @@ export async function startBrowser(
     }, localstorage);
   }
 
+  timer.mark("navigate");
+
   const cdpSession = await page.createCDPSession();
   const { targetInfo } = await cdpSession.send("Target.getTargetInfo");
   await cdpSession.detach();
+  timer.mark("targetInfo");
 
   const session: BrowserSession = {
     id,
@@ -178,6 +220,7 @@ export async function startBrowser(
   if (record) {
     session.recorder = await startRecording(page);
     session.recording = { status: "recording" };
+    timer.mark("recording");
   }
 
   // Settle the session on any disconnect — a crash (reported to the backend as
@@ -193,6 +236,14 @@ export async function startBrowser(
   });
 
   sessions.set(id, session);
+  // Phase breakdown plus how deep the pool was left. Together they say not just
+  // that a start was slow but why: a miss with an empty pool is a capacity
+  // problem, a hit that's still slow is a context problem.
+  logger.info("browser start timings", {
+    id,
+    ...timer.report(),
+    poolDepth: warmCount(),
+  });
   return {
     id,
     wsEndpoint: browser.wsEndpoint(),

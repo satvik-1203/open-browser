@@ -2,7 +2,12 @@ import { logger } from "@repo/logger";
 import type { CookieData, StorageState } from "@repo/types";
 import type { Browser } from "puppeteer";
 
-import { isStorableOrigin, withOriginPage } from "@/services/context/originPage";
+import {
+  closeOriginContext,
+  isStorableOrigin,
+  openOriginContext,
+  withOriginSession,
+} from "@/services/context/originPage";
 
 /**
  * Origin restores in flight at once. Each holds an open tab, so this trades a
@@ -28,15 +33,27 @@ function withSourceUrl(cookie: CookieData): CookieData & { url: string } {
   return { ...cookie, url: `https://${host}${cookie.path ?? "/"}` };
 }
 
-/** Write one origin's localStorage. Runs in page context. */
-function writeLocalStorage(entries: Array<{ name: string; value: string }>) {
-  for (const { name, value } of entries) {
-    try {
-      window.localStorage.setItem(name, value);
-    } catch {
-      // Quota or a disabled store — skip the key, keep the rest.
+/**
+ * Expression that writes one origin's localStorage, evaluated in the document.
+ *
+ * Built as source rather than passed as a function + argument because the
+ * throwaway document is driven over raw CDP (`Runtime.evaluate`), which takes
+ * an expression. The entries are embedded as JSON, so values needing escaping
+ * are handled by `JSON.stringify` rather than by hand.
+ */
+function writeLocalStorageExpression(
+  entries: Array<{ name: string; value: string }>,
+): string {
+  return `(() => {
+    for (const { name, value } of ${JSON.stringify(entries)}) {
+      try {
+        window.localStorage.setItem(name, value);
+      } catch {
+        // Quota or a disabled store — skip the key, keep the rest.
+      }
     }
-  }
+    return window.localStorage.length;
+  })()`;
 }
 
 /**
@@ -71,28 +88,41 @@ export async function restoreState(
 
   const restored: string[] = [];
   const queue = targets.slice();
-  await Promise.all(
-    Array.from({ length: Math.min(RESTORE_CONCURRENCY, queue.length) }, async () => {
-      while (queue.length) {
-        const target = queue.shift();
-        if (!target) return;
-        try {
-          await withOriginPage(browser, target.origin, (page) =>
-            page.evaluate(writeLocalStorage, target.localStorage),
-          );
-          restored.push(target.origin);
-        } catch (error) {
-          // Best-effort per origin. Cookies alone carry most real logins
-          // (Google's included), so a failed origin degrades the session
-          // rather than failing the start.
-          logger.warn("context restore skipped an origin", {
-            origin: target.origin,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
-    }),
-  );
+  if (queue.length) {
+    // One browser-level CDP session for the whole restore, not one per origin.
+    const ctx = await openOriginContext(browser);
+    try {
+      await Promise.all(
+        Array.from(
+          { length: Math.min(RESTORE_CONCURRENCY, queue.length) },
+          async () => {
+            while (queue.length) {
+              const target = queue.shift();
+              if (!target) return;
+              try {
+                await withOriginSession(ctx, target.origin, (session) =>
+                  session.evaluate(
+                    writeLocalStorageExpression(target.localStorage),
+                  ),
+                );
+                restored.push(target.origin);
+              } catch (error) {
+                // Best-effort per origin. Cookies alone carry most real logins
+                // (Google's included), so a failed origin degrades the session
+                // rather than failing the start.
+                logger.warn("context restore skipped an origin", {
+                  origin: target.origin,
+                  error: error instanceof Error ? error.message : String(error),
+                });
+              }
+            }
+          },
+        ),
+      );
+    } finally {
+      await closeOriginContext(ctx);
+    }
+  }
 
   logger.info("context state restored", {
     cookies: state.cookies?.length ?? 0,

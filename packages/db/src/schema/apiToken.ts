@@ -31,5 +31,10 @@ export const apiToken = pgTable(
       .$defaultFn(() => new Date())
       .notNull(),
   },
-  (t) => [index("api_token_token_hash_idx").on(t.tokenHash)],
+  (t) => [
+    index("api_token_token_hash_idx").on(t.tokenHash),
+    // Serves the settings page's token list, and the delete-user cascade — an
+    // unindexed foreign key makes Postgres scan this table to enforce it.
+    index("api_token_user_idx").on(t.userId),
+  ],
 );

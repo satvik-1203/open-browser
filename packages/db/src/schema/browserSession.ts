@@ -55,8 +55,31 @@ export const browserSession = pgTable(
       .notNull(),
   },
   (t) => [
-    index("browser_session_user_idx").on(t.userId),
     // Serves "list this user's live sessions".
     index("browser_session_user_status_idx").on(t.userId, t.status),
+    // Serves the dashboard's session list: filtered by owner, ordered by
+    // (createdAt, id) DESC, and keyset-paginated on exactly that pair. With
+    // only (user_id) to work from, Postgres has to read and sort every one of a
+    // user's sessions to return any page, and this is the table that grows for
+    // the life of the account. A plain (user_id) index would be redundant with
+    // this one: user_id leads it, so anything that could serve, this serves too.
+    //
+    // `nullsFirst` is load-bearing, not decoration. `ORDER BY x DESC` means
+    // `DESC NULLS FIRST` in Postgres, and an index declared `DESC NULLS LAST`
+    // (drizzle's default for `.desc()`) is a different ordering — so the planner
+    // can't use it to satisfy the sort, and quietly falls back to scanning and
+    // sorting the lot. Both columns are NOT NULL, so this changes nothing about
+    // what the index *contains*; it only makes the ordering match the query.
+    index("browser_session_user_created_idx").on(
+      t.userId,
+      t.createdAt.desc().nullsFirst(),
+      t.id.desc().nullsFirst(),
+    ),
+    // `context_id` is a foreign key, and an unindexed foreign key is scanned
+    // twice over: once by `countWriters` on every context page, and once by
+    // Postgres itself on every context delete, which has to find the rows it
+    // must set null. `status` rides along because the only question either
+    // asks is which of a context's sessions are still live.
+    index("browser_session_context_status_idx").on(t.contextId, t.status),
   ],
 );
