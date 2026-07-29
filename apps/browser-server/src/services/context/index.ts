@@ -1,4 +1,4 @@
-export { captureState } from "./captureState";
+export { captureCookies, captureState } from "./captureState";
 export {
   contextSnapshotKey,
   loadSnapshot,

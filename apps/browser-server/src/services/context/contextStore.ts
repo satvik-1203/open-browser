@@ -3,7 +3,7 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import { logger } from "@repo/logger";
 import type { StorageState } from "@repo/types";
 
-import { getStorage, objectKey } from "@/services/storage/index";
+import { getStorage } from "@/services/storage/index";
 
 /**
  * Refuse to store a snapshot bigger than this. localStorage allows ~5-10MB per
@@ -17,22 +17,33 @@ export const MAX_SNAPSHOT_BYTES = 16 * 1024 * 1024;
 export class SnapshotTooLargeError extends Error {}
 
 /**
- * Logical key for a version of a context's snapshot. The backend stores keys in
- * this form; the storage prefix (if the server has one) is applied here, so the
- * backend never has to know about it.
+ * Key for a version of a context's snapshot.
+ *
+ * Deliberately NOT under the storage prefix: that prefix scopes *recordings*
+ * (`AWS_S3_PREFIX=recordings/`), and contexts are a different kind of object
+ * that happens to share the bucket. Filing them under it would also strand
+ * every snapshot written before this key scheme existed.
  */
 export function contextSnapshotKey(contextId: string, version: number): string {
   return `contexts/${contextId}/${version}.json.gz`;
 }
 
-/** Read and parse a snapshot. Returns undefined when the key isn't there. */
+/**
+ * Read and parse a snapshot, or undefined when the key isn't there.
+ *
+ * The missing case has to be a value, not a throw: a context row can outlive
+ * its object (a bad save, a lifecycle rule, a hand-edited key), and the caller's
+ * job then is to start clean — not to fail the whole session over a profile it
+ * could do without.
+ */
 export async function loadSnapshot(
   key: string,
 ): Promise<StorageState | undefined> {
   const storage = getStorage();
   if (!storage) return undefined;
+  if (!(await storage.adapter.exists(key))) return undefined;
 
-  const stream = await storage.adapter.getStream(objectKey(storage.prefix, key));
+  const stream = await storage.adapter.getStream(key);
   const chunks: Buffer[] = [];
   for await (const chunk of stream) {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string));
@@ -68,7 +79,7 @@ export async function saveSnapshot(
   }
 
   await storage.adapter.store({
-    key: objectKey(storage.prefix, key),
+    key,
     body,
     contentType: "application/json",
   });
