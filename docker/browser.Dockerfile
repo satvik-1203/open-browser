@@ -100,8 +100,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && "/usr/local/bin/ob-chrome" --version \
     && rm -rf /var/lib/apt/lists/*
 
+# The explicit chown is load-bearing, not belt-and-braces: an earlier layer
+# already created /home/browser (root-owned), so `--create-home` finds it
+# present and leaves the ownership alone — "home directory already exists" in
+# the build log. Chrome then cannot write $HOME, and because real Chrome ships
+# crashpad enabled (Debian's chromium does NOT — it is built with crash
+# reporting off), it fails to create its crash database and execs
+# chrome_crashpad_handler with an empty --database, killing every launch:
+#     chrome_crashpad_handler: --database is required
 RUN groupadd --gid 1001 browsers \
-    && useradd --uid 1001 --gid browsers --create-home --shell /usr/sbin/nologin browser
+    && useradd --uid 1001 --gid browsers --create-home --shell /usr/sbin/nologin browser \
+    && mkdir -p /home/browser \
+    && chown -R browser:browsers /home/browser
 
 # Entrypoint guarantees an X display for headful Chrome regardless of the
 # command run — so overriding CMD (e.g. a Railway "Custom Start Command") can't
