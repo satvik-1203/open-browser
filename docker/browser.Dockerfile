@@ -55,17 +55,27 @@ WORKDIR /app
 ENV NODE_ENV=production \
     PORT=8080 \
     HOME=/home/browser \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    PUPPETEER_EXECUTABLE_PATH=/usr/local/bin/ob-chrome
 
-# Debian's chromium package pulls in its own matching runtime dependency
-# closure via apt, which is more reliable across base-image updates than
-# hand-listing the shared libraries Chrome needs. Pinned to bullseye (not
-# bookworm): bookworm's chromium (150.x) crashes on launch with SIGTRAP on
-# arm64 under some container runtimes; bullseye's build (120.x) is stable.
+# Debian's chromium package is installed for its dependency closure — apt pulls
+# the matching set of shared libraries Chrome needs, which is far more reliable
+# than hand-listing them. Pinned to bullseye (not bookworm): bookworm's chromium
+# (150.x) crashes on launch with SIGTRAP on arm64 under some container runtimes.
 # `xvfb` provides a virtual X display so Chrome can run HEADFUL (headless: false)
 # — less bot-detectable — with no physical screen. The server is launched under
 # `xvfb-run` below; headless launches ignore the display, so this is harmless
 # either way.
+#
+# But bullseye's chromium is 120.x (Dec 2023), and we do NOT run it when we can
+# avoid it. `fingerprint.ts` deliberately derives the advertised UA from the real
+# binary, so a 120 build tells every site it is Chrome 120 — Google answers that
+# with "This browser version is no longer supported" and expires the login,
+# which silently destroys saved contexts no matter how well they round-trip.
+# So on amd64 (what Railway builds) we install real, current google-chrome-stable
+# from Google's repo and point puppeteer at it. Google ships no arm64 build, so
+# local arm64 images fall back to chromium — fine for development, but expect the
+# version banner there. `ob-chrome` is the indirection that lets one ENV cover both.
+ARG TARGETARCH
 RUN apt-get update && apt-get install -y --no-install-recommends \
       chromium \
       fonts-liberation \
@@ -73,6 +83,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ffmpeg \
       xvfb \
       xauth \
+      ca-certificates \
+      curl \
+      gnupg \
+    && if [ "${TARGETARCH:-amd64}" = "amd64" ]; then \
+         curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
+           | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+         && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" \
+           > /etc/apt/sources.list.d/google-chrome.list \
+         && apt-get update \
+         && apt-get install -y --no-install-recommends google-chrome-stable \
+         && ln -sf /usr/bin/google-chrome-stable /usr/local/bin/ob-chrome; \
+       else \
+         ln -sf /usr/bin/chromium /usr/local/bin/ob-chrome; \
+       fi \
+    && "/usr/local/bin/ob-chrome" --version \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --gid 1001 browsers \
