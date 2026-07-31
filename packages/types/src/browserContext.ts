@@ -1,4 +1,4 @@
-import type { CookieData, ProxyOptions } from "./browser";
+import type { ProxyOptions } from "./browser";
 import type { FingerprintOptions } from "./fingerprint";
 
 /**
@@ -17,62 +17,6 @@ import type { FingerprintOptions } from "./fingerprint";
 export const BROWSER_CONTEXT_STATUSES = ["ready", "saving", "failed"] as const;
 
 export type BrowserContextStatus = (typeof BROWSER_CONTEXT_STATUSES)[number];
-
-/**
- * One origin's localStorage. Cookies are browser-wide and restore in a single
- * CDP call; localStorage is origin-scoped and can only be written from a
- * document on that origin, so it has to be grouped this way for the restore
- * pass to know where to navigate.
- */
-export interface OriginStorage {
-  /** Serialized origin, e.g. `https://mail.google.com`. */
-  origin: string;
-  localStorage: Array<{ name: string; value: string }>;
-}
-
-/**
- * A context snapshot. Deliberately the same shape as Playwright's
- * `storageState`, so a state file captured with Playwright can seed a context
- * and vice versa without a translation layer.
- *
- * Scope is cookies + localStorage only. IndexedDB, service workers, Cache
- * Storage and browser preferences are not captured; sites that keep auth in
- * IndexedDB (some Firebase/Auth0 setups) will not stay signed in.
- */
-export interface StorageState {
-  cookies: CookieData[];
-  origins: OriginStorage[];
-}
-
-/** Identity of a cookie for merge purposes — what makes two cookies "the same". */
-export interface CookieRef {
-  name: string;
-  domain: string;
-  path?: string;
-}
-
-/**
- * What one session changed, relative to the snapshot it loaded.
- *
- * This is the unit that gets written back, instead of the session's whole final
- * state. Overwriting with full state means the last session to finish silently
- * erases every other session's work; applying a delta means two sessions that
- * touched different sites both keep their changes.
- *
- * Removals are recorded explicitly — a logout has to survive the merge, and it
- * is indistinguishable from "never had it" unless we say so.
- */
-export interface StorageDelta {
-  cookies: {
-    upsert: CookieData[];
-    remove: CookieRef[];
-  };
-  origins: Array<{
-    origin: string;
-    upsert: Array<{ name: string; value: string }>;
-    remove: string[];
-  }>;
-}
 
 /** A user-facing context record. Never carries the snapshot itself. */
 export interface BrowserContextRecord {
