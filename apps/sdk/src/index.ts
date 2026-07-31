@@ -11,7 +11,6 @@ export type {
   FingerprintOptions,
   GetBrowserMetricsResponse,
   ListBrowserContextsResponse,
-  OriginStorage,
   GetBrowserResponse,
   GetRecordingUrlResponse,
   GetServerMetricsResponse,
@@ -25,5 +24,4 @@ export type {
   StartBrowserOptions,
   StartBrowserResponse,
   StopBrowserResponse,
-  StorageState,
 } from "@/types";

@@ -13,9 +13,9 @@ type BrowserContextRow = typeof schema.browserContext.$inferSelect;
 /** Statuses that mean a session is still live and may still write back. */
 const ACTIVE_STATUSES = ["starting", "running", "stopping"] as const;
 
-/** Storage key for a given version of a context's snapshot. */
+/** Storage key for a given version of a context's profile archive. */
 export function snapshotKey(contextId: string, version: number): string {
-  return `contexts/${contextId}/${version}.json.gz`;
+  return `contexts/${contextId}/${version}.tar.gz`;
 }
 
 /** Load a context only if it belongs to the given user (else undefined). */
@@ -82,9 +82,12 @@ export async function countWriters(
 /**
  * Resolve a context for a starting session.
  *
- * Nothing is locked and nothing can be refused: any number of sessions may read
- * the context, and any number may write back to it. The write key isn't chosen
- * here — it's picked at save time against whatever version is current by then.
+ * Nothing is locked and nothing can be refused: any number of sessions may run
+ * against a context, each on its own copy of the profile. They no longer merge,
+ * though — a Chromium profile cannot be merged the way cookies could — so the
+ * last session to end wins the write-back. `countWriters` is what surfaces that
+ * to the caller. The write key isn't chosen here; it's picked at save time
+ * against whatever version is current by then.
  */
 export function acquireContext(
   row: BrowserContextRow,
@@ -190,8 +193,7 @@ export async function settleContext(
     contextId: result.id,
     sessionId,
     saved: result.saved,
-    cookies: result.cookies,
-    origins: result.origins,
+    sizeBytes: result.sizeBytes,
   });
 }
 

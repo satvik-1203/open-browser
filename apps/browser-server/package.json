@@ -11,7 +11,11 @@
     "check-types": "tsc --noEmit",
     "bench:seed": "tsx bench/seed.ts",
     "bench": "tsx bench/start.ts",
-    "bench:verify": "tsx bench/verify.ts"
+    "bench:verify": "tsx bench/verify.ts",
+    "verify:context": "tsx bench/context.ts",
+    "context:inspect": "tsx bench/inspect-context.ts",
+    "context:open": "tsx bench/open-context.ts",
+    "context:profile": "tsx bench/profile-context.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1081.0",

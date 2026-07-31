@@ -57,10 +57,10 @@ export interface SessionEndedPayload {
   status: BrowserSessionEndStatus;
   recording?: RecordingInfo;
   /**
-   * Outcome of persisting the session's context, when it held the write lease.
-   * The browser server writes the snapshot to the key the backend picked at
-   * start; the backend promotes that key to the context's current version (or
-   * marks the save failed and keeps the previous version) when this arrives.
+   * Outcome of persisting the session's context, when it was set to write back.
+   * The browser server uploads the profile archive under a fresh key; the
+   * backend promotes that key to the context's current version (or marks the
+   * save failed and keeps the previous version) when this arrives.
    */
   context?: ContextSaveResult;
 }
@@ -71,8 +71,5 @@ export interface ContextSaveResult {
   saved: boolean;
   /** Bytes written, present when `saved`. */
   sizeBytes?: number;
-  /** Cookie/origin counts, for surfacing "did my login actually persist?". */
-  cookies?: number;
-  origins?: number;
   error?: string;
 }

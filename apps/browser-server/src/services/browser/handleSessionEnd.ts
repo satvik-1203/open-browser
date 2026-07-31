@@ -36,11 +36,6 @@ export async function handleSessionEnd(
   if (session.endHandled) return;
   session.endHandled = true;
 
-  // Before finalizeRecording, which closes the browser the moment the capture
-  // is drained: reading localStorage needs a live document, so the context
-  // snapshot has to be taken while the browser is still up.
-  const context = await persistContext(session);
-
   // Never let a recording-finalization failure abort teardown: if it threw, the
   // session would linger in the map (a zombie) and the backend would never get
   // the end callback. Finalize is best-effort; deletion + notify must still run.
@@ -50,6 +45,26 @@ export async function handleSessionEnd(
       error: error instanceof Error ? error.message : String(error),
     });
   });
+
+  // The browser must be gone before the profile is archived: it is a set of
+  // SQLite and LevelDB stores, and taring them from under a live Chromium gives
+  // a torn archive. finalizeRecording closes it once the capture is drained,
+  // but only when there *was* a recording — so close it here too, and wait for
+  // the process to actually exit. This is the reverse of the old ordering,
+  // where the cookie snapshot had to be read from a live browser over CDP.
+  if (session.browser.connected) {
+    await session.browser.close().catch((error: unknown) => {
+      logger.warn("browser close failed before context save", {
+        id: session.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }
+
+  // Always called when a context is attached, persisting or not — it also owns
+  // removing the session's profile directory, which must happen either way.
+  const context = await persistContext(session);
+
   sessions.delete(session.id);
 
   logger.info("browser session ended", {

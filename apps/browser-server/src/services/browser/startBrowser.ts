@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { logger } from "@repo/logger";
-import type { StartBrowserPayload, StorageState } from "@repo/types";
+import type { StartBrowserPayload } from "@repo/types";
+import type { Browser } from "puppeteer";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { sessions } from "@/lib/browsers";
@@ -17,9 +18,8 @@ import { PhaseTimer, timed } from "@/services/browser/timings";
 import type { StartBrowserResult } from "@/services/browser/types";
 import { installViewport } from "@/services/browser/viewport";
 import {
-  captureCookies,
-  loadSnapshot,
-  restoreState,
+  discardProfile,
+  materializeProfile,
 } from "@/services/context/index";
 import { startRecording } from "@/services/recording/index";
 import { isStorageConfigured } from "@/services/storage/index";
@@ -79,43 +79,60 @@ export async function startBrowser(
 
   timer.mark("validate");
 
-  // Fetch the snapshot alongside the launch rather than after it. Both are
-  // hundreds of milliseconds and neither needs the other's result, so running
-  // them in series put the whole storage round trip on the critical path for
-  // no reason. Kicked off first so it has the launch's duration to work with.
-  const snapshotPromise = context?.loadKey
-    ? timed(timer, "snapshotLoad", () => loadSnapshot(context.loadKey as string))
+  // The profile has to exist on disk before the launch, because it *is* the
+  // launch: Chromium takes its user data directory as a flag and reads it at
+  // startup. That also rules out the warm pool for context sessions — a pooled
+  // browser is already running against its own throwaway profile, and a profile
+  // cannot be swapped into a live browser.
+  const profileDir = context
+    ? await timed(timer, "profileLoad", () => materializeProfile(context.loadKey))
     : undefined;
-  // Never leave it unhandled: if the launch throws, nothing awaits this and an
-  // S3 failure would otherwise take the process down as an unhandled rejection.
-  snapshotPromise?.catch(() => {});
 
-  const warmBrowser = await takeWarmBrowser({
-    headless,
-    lang,
-    proxyServer: proxy?.server,
-  });
+  const warmBrowser = profileDir
+    ? undefined
+    : await takeWarmBrowser({
+        headless,
+        lang,
+        proxyServer: proxy?.server,
+      });
 
-  const browser =
-    warmBrowser ??
-    (await puppeteer.launch({
-      headless,
-      // Applied per-page by `installViewport` below instead, so that a custom
-      // viewport doesn't disqualify a request from using a warm browser.
-      defaultViewport: null,
-      // Drop the automation flag puppeteer adds by default; combined with the
-      // blink-feature switch below this removes the most obvious `webdriver` tells.
-      ignoreDefaultArgs: ["--enable-automation"],
-      args: [
-        "--disable-dev-shm-usage",
-        "--disable-blink-features=AutomationControlled",
-        // Chrome bakes its UI language into some surfaces before any CDP override
-        // can run, so the launch flag has to agree with the emulated locale.
-        `--lang=${lang}`,
-        ...sandboxArgs,
-        ...(proxy ? [`--proxy-server=${proxy.server}`] : []),
-      ],
-    }));
+  let browser: Browser;
+  try {
+    browser =
+      warmBrowser ??
+      (await puppeteer.launch({
+        headless,
+        // Applied per-page by `installViewport` below instead, so that a custom
+        // viewport doesn't disqualify a request from using a warm browser.
+        defaultViewport: null,
+        // Drop the automation flag puppeteer adds by default; combined with the
+        // blink-feature switch below this removes the most obvious `webdriver` tells.
+        ignoreDefaultArgs: ["--enable-automation"],
+        args: [
+          "--disable-dev-shm-usage",
+          "--disable-blink-features=AutomationControlled",
+          // Chrome bakes its UI language into some surfaces before any CDP override
+          // can run, so the launch flag has to agree with the emulated locale.
+          `--lang=${lang}`,
+          // Passed as an argument rather than puppeteer's `userDataDir` option
+          // on purpose. With the option, a profile directory is destroyed on
+          // `browser.close()` whenever a pool browser launches alongside this
+          // one — puppeteer's own temp-profile cleanup, which only ever applies
+          // to directories it created, ends up pointed at ours. Reproduced
+          // directly: option + concurrent pool launch leaves 4 of 40 entries,
+          // the same arg passed here leaves all 38. Chromium reads the flag
+          // identically either way.
+          ...(profileDir ? [`--user-data-dir=${profileDir}`] : []),
+          ...sandboxArgs,
+          ...(proxy ? [`--proxy-server=${proxy.server}`] : []),
+        ],
+      }));
+  } catch (error) {
+    // Nothing owns the directory yet — no session exists to clean it up — so a
+    // failed launch would otherwise leak a whole profile into the temp dir.
+    if (profileDir) await discardProfile(profileDir);
+    throw error;
+  }
 
   timer.mark("launch");
   timer.set("warm", warmBrowser ? 1 : 0);
@@ -138,49 +155,9 @@ export async function startBrowser(
   if (viewport) await installViewport(browser, viewport);
   timer.mark("fingerprint");
 
-  const contextOrigins = new Set<string>();
-  // The merge base: what this session started from. Teardown diffs against it
-  // to isolate this session's own changes. An empty base is correct for a
-  // context with no snapshot yet — everything the session does is new.
-  let contextBase: StorageState = { cookies: [], origins: [] };
-  if (snapshotPromise) {
-    const snapshot = await snapshotPromise;
-    if (snapshot) {
-      const restoredOrigins = await timed(timer, "restore", () =>
-        restoreState(browser, snapshot),
-      );
-      for (const origin of restoredOrigins) contextOrigins.add(origin);
-
-      // Re-read the cookies the browser actually ended up with, rather than
-      // trusting the snapshot we handed it. Chrome silently drops cookies it
-      // won't accept, and a base claiming cookies that were never really there
-      // makes teardown compute them as *deletions* — a failed restore would
-      // then erase the very login it was supposed to reuse. One CDP call.
-      contextBase = {
-        cookies: await timed(timer, "rereadCookies", () =>
-          captureCookies(browser),
-        ),
-        origins: snapshot.origins.filter((o) => restoredOrigins.includes(o.origin)),
-      };
-      const dropped = snapshot.cookies.length - contextBase.cookies.length;
-      if (dropped > 0) {
-        logger.warn("browser rejected some restored cookies", {
-          id,
-          contextId: context?.id,
-          expected: snapshot.cookies.length,
-          actual: contextBase.cookies.length,
-        });
-      }
-    } else {
-      // The row pointed at a key that isn't there. Start clean rather than
-      // fail — the caller gets a usable browser and the next save repairs it.
-      logger.warn("context snapshot missing; starting clean", {
-        id,
-        contextId: context?.id,
-        key: context?.loadKey,
-      });
-    }
-  }
+  // Nothing to hydrate: the context was already in place before Chromium
+  // started, which is the point — the site never gets a window in which it can
+  // decide the browser is logged out.
   timer.mark("context");
 
   // After the context, so an explicitly-passed cookie overrides the stored one.
@@ -208,12 +185,11 @@ export async function startBrowser(
     createdAt: Date.now(),
   };
 
-  if (context) {
+  if (context && profileDir) {
     session.context = {
       id: context.id,
       persist: context.persist === true,
-      base: contextBase,
-      origins: contextOrigins,
+      dir: profileDir,
     };
   }
 
