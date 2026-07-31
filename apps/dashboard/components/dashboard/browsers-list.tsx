@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@repo/ui/components/button";
+import { Checkbox } from "@repo/ui/components/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/select";
+import { cn } from "@repo/ui/lib/utils";
 import { AlertTriangle, Loader2, MonitorPlay, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -73,7 +75,11 @@ export function BrowsersList() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [contextId, setContextId] = useState<string>(NO_CONTEXT);
-  const [persist, setPersist] = useState(false);
+  // On by default: picking a context and *not* saving what you did in it is
+  // almost never what you meant — a session that signs in and discards the
+  // result is the surprising outcome, not the safe one. Only meaningful with a
+  // context selected, so it follows the picker below.
+  const [persist, setPersist] = useState(true);
   const [search, setSearch] = useState("");
 
   const contexts = [...(contextsQuery.data ?? [])].sort(byRecency);
@@ -110,7 +116,7 @@ export function BrowsersList() {
 
   function openDialog() {
     setContextId(NO_CONTEXT);
-    setPersist(false);
+    setPersist(true);
     setSearch("");
     startMut.reset();
     setDialogOpen(true);
@@ -170,7 +176,10 @@ export function BrowsersList() {
               value={contextId}
               onValueChange={(value) => {
                 setContextId(value);
-                if (value === NO_CONTEXT) setPersist(false);
+                // Track the picker rather than latching: clearing the context
+                // disables saving, and choosing one restores the default rather
+                // than silently inheriting an earlier "off".
+                setPersist(value !== NO_CONTEXT);
               }}
             >
               <SelectTrigger id="start-context" className="w-full">
@@ -215,24 +224,33 @@ export function BrowsersList() {
             </Select>
 
             <label
-              className={`mt-1 flex items-start gap-2 text-sm ${
-                selected ? "" : "text-muted-foreground cursor-not-allowed"
-              }`}
+              className={cn(
+                "mt-1 flex items-start gap-3 rounded border p-3 text-sm transition-colors",
+                selected
+                  ? "hover:bg-accent/40 cursor-pointer border-border"
+                  : "border-border/60 text-muted-foreground cursor-not-allowed",
+              )}
             >
-              <input
-                type="checkbox"
-                className="accent-primary mt-0.5 size-4"
+              <Checkbox
+                className="mt-0.5"
                 checked={persist}
                 disabled={!selected}
-                onChange={(e) => setPersist(e.target.checked)}
+                onCheckedChange={(value) => setPersist(value === true)}
               />
-              <span>
-                Save changes back to this context when the session ends
+              <span className="flex flex-col gap-1">
+                <span className="text-foreground font-medium">
+                  Save changes back to this context
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  {selected
+                    ? "When the session ends, its profile replaces this context — so anything you sign into stays signed in next time."
+                    : "Pick a context above to save this session's profile."}
+                </span>
                 {persist && otherWriters > 0 && (
-                  <span className="block text-xs">
-                    {otherWriters} other session{otherWriters === 1 ? " is" : "s are"} also
-                    writing — changes are merged, but the same site signed in twice
-                    may still sign you out.
+                  <span className="text-muted-foreground text-xs">
+                    {otherWriters} other session
+                    {otherWriters === 1 ? " is" : "s are"} also writing. Profiles
+                    replace rather than merge, so whichever ends last wins.
                   </span>
                 )}
               </span>
