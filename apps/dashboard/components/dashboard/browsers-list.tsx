@@ -204,10 +204,11 @@ export function BrowsersList() {
                     <span className="truncate">
                       {context.name ?? "Untitled context"}
                     </span>
-                    <span className="text-muted-foreground text-xs">
-                      v{context.version}
-                      {context.writers > 0 ? ` · ${context.writers} writing` : ""}
-                    </span>
+                    {context.writers > 0 && (
+                      <span className="text-muted-foreground text-xs">
+                        {context.writers} writing
+                      </span>
+                    )}
                   </SelectItem>
                 ))}
                 {visible.length === 0 && (

@@ -205,14 +205,15 @@ export function ContextsPanel() {
                     )}
                   </span>
                   <span className="text-muted-foreground text-xs">
-                    v{context.version} · {formatSize(context.sizeBytes)} · Last
-                    used {timeAgo(context.lastUsedAt)}
+                    {formatSize(context.sizeBytes)} · Last used{" "}
+                    {timeAgo(context.lastUsedAt)}
                   </span>
                   {context.status === "failed" && context.errorMessage && (
-                    // The context still loads its previous version, so say so —
+                    // The context still loads what it had before, so say so —
                     // otherwise "Save failed" reads as "profile is broken".
                     <span className="text-destructive mt-0.5 text-xs">
-                      {context.errorMessage} · still loading v{context.version}
+                      {context.errorMessage} · still loading the last saved
+                      profile
                     </span>
                   )}
                 </div>
