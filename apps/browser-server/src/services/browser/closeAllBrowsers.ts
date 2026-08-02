@@ -1,20 +1,18 @@
 import { sessions } from "@/lib/browsers";
 import { handleSessionEnd } from "@/services/browser/handleSessionEnd";
-import { drainPool } from "@/services/browser/pool";
 
 export async function closeAllBrowsers(): Promise<void> {
-  // Warm browsers belong to no session, so nothing else would ever close them —
-  // they'd survive the shutdown as orphaned Chrome processes.
-  await drainPool();
   await Promise.all(
     [...sessions.values()].map(async (session) => {
       // The server is going down, so report each as `server-error` and flush the
-      // callback (await delivery) before the process exits.
+      // callback (await delivery) before the process exits. `handleSessionEnd`
+      // disposes the runtime, which is what actually destroys a remote sandbox —
+      // without it a restart would strand one per live session, billing until
+      // its auto-stop interval expires.
       await handleSessionEnd(session, {
         status: "server-error",
         flush: true,
       }).catch(() => {});
-      await session.browser.close().catch(() => {});
     }),
   );
   sessions.clear();

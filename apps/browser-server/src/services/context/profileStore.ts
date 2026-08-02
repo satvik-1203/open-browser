@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -38,7 +39,7 @@ export function profileArchiveKey(contextId: string, version: number): string {
  * hundreds. Browserbase draws the same line, excluding the HTTP cache from
  * their contexts.
  */
-const PRUNE = [
+export const PROFILE_PRUNE_DIRS = [
   "Default/Cache",
   "Default/Code Cache",
   "Default/GPUCache",
@@ -54,23 +55,31 @@ const PRUNE = [
 ];
 
 /**
- * A private Chromium user data directory for one session, seeded from the
- * context's stored profile when it has one.
+ * Download a context's stored profile to a local tarball, ready to be handed to
+ * a launcher. Returns `undefined` when there is nothing to restore.
  *
- * Private per session, never shared: Chromium takes a `ProcessSingleton` lock on
- * a profile directory and refuses to start a second browser on one — "Aborting
- * now to avoid profile corruption", in its own words. Two sessions on one
- * context therefore each get their own copy, and the last to end wins the
- * write-back.
+ * Stops at the archive rather than unpacking it because where the profile has
+ * to *land* is the launcher's business: the local adapter extracts it onto this
+ * machine's disk, the Daytona adapter uploads the same bytes into a sandbox.
+ * Unpacking here would force the remote path to re-tar what it just untarred.
+ *
+ * Note each session gets its own copy. Chromium takes a `ProcessSingleton` lock
+ * on a profile directory and refuses to start a second browser against one, so
+ * concurrent sessions on one context cannot share it — and the last to end wins
+ * the write-back.
  */
-export async function materializeProfile(loadKey?: string): Promise<string> {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ob-profile-"));
-  if (!loadKey) return dir;
+export async function fetchProfileArchive(
+  loadKey?: string,
+): Promise<string | undefined> {
+  if (!loadKey) return undefined;
 
   const storage = getStorage();
-  if (!storage) return dir;
+  if (!storage) return undefined;
 
-  const tarPath = `${dir}.tar.gz`;
+  const tarPath = path.join(
+    os.tmpdir(),
+    `ob-profile-load-${randomUUID()}.tar.gz`,
+  );
   try {
     const stream = await storage.adapter.getStream(loadKey);
     const chunks: Buffer[] = [];
@@ -78,37 +87,18 @@ export async function materializeProfile(loadKey?: string): Promise<string> {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string));
     }
     await fs.writeFile(tarPath, Buffer.concat(chunks));
-    try {
-      await run("tar", ["xzf", tarPath, "-C", dir]);
-      logger.info("context profile restored", { key: loadKey });
-    } catch (error) {
-      // Not a profile archive we can read. The common case is a context written
-      // before profiles existed, whose key still points at a cookie snapshot
-      // (`.json.gz`) — tar rejects it. Start clean rather than fail the session:
-      // the caller gets a usable browser and the next save replaces the key with
-      // a real archive, which is the whole migration.
-      logger.warn("context profile unreadable; starting clean", {
-        key: loadKey,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      // Wipe whatever tar managed to write before it gave up, so Chromium never
-      // starts on a half-extracted profile.
-      await fs.rm(dir, { recursive: true, force: true });
-      await fs.mkdir(dir, { recursive: true });
-    }
+    logger.info("context profile fetched", { key: loadKey });
+    return tarPath;
   } catch (error) {
+    await fs.rm(tarPath, { force: true }).catch(() => {});
     if (isNotFound(error)) {
       // The row pointed at a key that isn't there. Start clean rather than
       // fail — the caller gets a usable browser and the next save repairs it.
       logger.warn("context profile missing; starting clean", { key: loadKey });
-    } else {
-      await discardProfile(dir);
-      throw error;
+      return undefined;
     }
-  } finally {
-    await fs.rm(tarPath, { force: true }).catch(() => {});
+    throw error;
   }
-  return dir;
 }
 
 /** A storage error that means "no such object", as opposed to a real failure. */
@@ -137,7 +127,7 @@ function isNotFound(error: unknown): boolean {
 export async function packProfile(
   dir: string,
 ): Promise<{ tarPath: string; sizeBytes: number }> {
-  for (const rel of PRUNE) {
+  for (const rel of PROFILE_PRUNE_DIRS) {
     await fs.rm(path.join(dir, rel), { recursive: true, force: true });
   }
   const tarPath = `${dir}.pack.tar.gz`;
