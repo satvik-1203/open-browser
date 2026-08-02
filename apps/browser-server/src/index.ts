@@ -6,7 +6,10 @@ import { browserRouter } from "@/routes/browser/index";
 import { metricsRouter } from "@/routes/metrics/index";
 import { browserCount } from "@/services/browser/browserCount";
 import { closeAllBrowsers } from "@/services/browser/closeAllBrowsers";
-import { logLauncherStatus } from "@/services/browser/launchers/index";
+import {
+  logLauncherStatus,
+  shutdownLauncher,
+} from "@/services/browser/launchers/index";
 import {
   logCallbackStatus,
   notifyServerStarted,
@@ -103,6 +106,9 @@ server.on("upgrade", (req, socket, head) => {
 async function shutdown() {
   logger.info("shutting down, closing all browsers", { count: browserCount() });
   await closeAllBrowsers();
+  // After the sessions: closing them frees their sandboxes, this frees the
+  // pooled ones that never belonged to a session.
+  await shutdownLauncher();
   server.close(() => process.exit(0));
 }
 

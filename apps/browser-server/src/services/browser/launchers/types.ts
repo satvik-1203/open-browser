@@ -71,6 +71,17 @@ export interface BrowserLauncher {
   /** Discriminator for logs/errors, e.g. "daytona". */
   readonly name: string;
   launch(spec: LaunchSpec): Promise<LaunchedBrowser>;
+  /**
+   * Optional: do any pre-allocation now that the server is accepting traffic.
+   * Not awaited — a start that arrives first just does the work inline.
+   */
+  warmUp?(): void;
+  /**
+   * Optional: release resources the launcher holds outside any session (e.g.
+   * pooled sandboxes, which belong to no session and would otherwise bill on
+   * past a shutdown).
+   */
+  shutdown?(): Promise<void>;
 }
 
 /**

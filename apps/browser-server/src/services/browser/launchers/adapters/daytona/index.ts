@@ -14,6 +14,7 @@ import type {
   LauncherProvider,
   LaunchSpec,
 } from "@/services/browser/launchers/types";
+import { WarmSandboxPool } from "@/services/browser/launchers/adapters/daytona/warmPool";
 import { PROFILE_PRUNE_DIRS } from "@/services/context/index";
 
 /** Where Chrome's user data directory lives inside the sandbox. */
@@ -131,27 +132,51 @@ interface DaytonaConfig {
 class DaytonaLauncher implements BrowserLauncher {
   readonly name = "daytona";
   private readonly daytona: Daytona;
+  private readonly pool: WarmSandboxPool;
 
   constructor(private readonly config: DaytonaConfig) {
     this.daytona = new Daytona({
       apiKey: config.apiKey,
       ...(config.apiUrl ? { apiUrl: config.apiUrl } : {}),
     });
+    this.pool = new WarmSandboxPool(() => this.allocate());
   }
 
-  async launch(spec: LaunchSpec): Promise<LaunchedBrowser> {
-    const started = Date.now();
-    const sandbox = await this.daytona.create(
+  /** Allocate one sandbox from the configured snapshot. */
+  private allocate(): Promise<Sandbox> {
+    return this.daytona.create(
       {
         snapshot: this.config.snapshot,
         // A safety net, not the teardown path: `dispose()` deletes the sandbox
         // when the session ends. This only catches sandboxes orphaned by a
         // server crash, which would otherwise bill forever.
         autoStopInterval: this.config.autoStopMinutes,
-        labels: { "ob-session": spec.id },
       },
       { timeout: 240 },
     );
+  }
+
+  /** Pre-allocate sandboxes at boot. No-op while pooling is off. */
+  warmUp(): void {
+    this.pool.refill();
+  }
+
+  /** Destroy idle pooled sandboxes; they belong to no session. */
+  async shutdown(): Promise<void> {
+    await this.pool.drain();
+  }
+
+  async launch(spec: LaunchSpec): Promise<LaunchedBrowser> {
+    const started = Date.now();
+    // A pooled sandbox has already paid Daytona's allocation cost — the bimodal
+    // ~1s/~21s that is the whole tail of a cold start.
+    const pooled = this.pool.take();
+    const sandbox = pooled ?? (await this.allocate());
+    // Label after the fact so a pooled sandbox (allocated before any session
+    // existed) is still traceable to the session that claimed it.
+    await sandbox
+      .setLabels({ "ob-session": spec.id })
+      .catch(() => {});
 
     try {
       if (spec.profileArchive) {
@@ -197,6 +222,8 @@ class DaytonaLauncher implements BrowserLauncher {
         sandboxId: sandbox.id,
         ms: Date.now() - started,
         headless: spec.headless,
+        warm: Boolean(pooled),
+        poolDepth: this.pool.depth,
       });
       return launched;
     } catch (error) {

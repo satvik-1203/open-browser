@@ -64,12 +64,28 @@ export function getLauncher(): BrowserLauncher {
   return cached;
 }
 
-/** Log which backend browsers will run on, at boot. */
+/** Log which backend browsers will run on, and let it pre-allocate. */
 export function logLauncherStatus(): void {
   try {
-    logger.info("browser launcher", { launcher: getLauncher().name });
+    const launcher = getLauncher();
+    logger.info("browser launcher", { launcher: launcher.name });
+    launcher.warmUp?.();
   } catch (error) {
     logger.error("browser launcher misconfigured", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * Release launcher-owned resources on shutdown. Separate from closing sessions:
+ * these are resources no session ever owned, so nothing else would free them.
+ */
+export async function shutdownLauncher(): Promise<void> {
+  try {
+    await getLauncher().shutdown?.();
+  } catch (error) {
+    logger.warn("launcher shutdown failed", {
       error: error instanceof Error ? error.message : String(error),
     });
   }

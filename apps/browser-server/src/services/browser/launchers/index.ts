@@ -1,4 +1,8 @@
-export { getLauncher, logLauncherStatus } from "./getLauncher";
+export {
+  getLauncher,
+  logLauncherStatus,
+  shutdownLauncher,
+} from "./getLauncher";
 export type {
   BrowserLauncher,
   LaunchedBrowser,
