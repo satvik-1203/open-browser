@@ -9,8 +9,7 @@ import {
   fetchContextSlot,
 } from "@/services/callback/notifyBackend";
 import {
-  discardProfile,
-  packProfile,
+  MAX_PROFILE_BYTES,
   profileArchiveKey,
   uploadProfile,
 } from "@/services/context/index";
@@ -33,96 +32,116 @@ const MAX_COMMIT_ATTEMPTS = 3;
  * acceptable here is that the version pointer only ever moves to a fully
  * uploaded archive, so a loser overwrites but never corrupts.
  *
- * MUST run with the browser already closed — see `packProfile`. This is the
- * reverse of the old ordering, where the snapshot had to be read from a *live*
- * browser over CDP.
- *
- * The session's profile directory is always removed, saved or not.
+ * MUST run with the browser already closed: archiving a live profile yields a
+ * torn snapshot that may not open. The *runtime* does the packing — locally by
+ * taring a directory, remotely by pruning and taring inside the sandbox and
+ * downloading only the result — so all that lives here is the upload and the
+ * commit race.
  */
 export async function persistContext(
   session: BrowserSession,
 ): Promise<ContextSaveResult | undefined> {
   const context = session.context;
   if (!context) return undefined;
+  if (!context.persist) return undefined;
 
-  const { dir } = context;
+  if (session.browser.connected) {
+    // Packing a live profile yields a torn archive, so refuse rather than
+    // store something that may not open.
+    logger.warn("context not saved: browser still running", {
+      id: session.id,
+      contextId: context.id,
+    });
+    return {
+      id: context.id,
+      saved: false,
+      error: "browser was still running when the profile was to be archived",
+    };
+  }
+
+  let tarPath: string | undefined;
   try {
-    if (!context.persist) return undefined;
+    tarPath = await session.runtime.exportProfile();
+    if (!tarPath) {
+      return {
+        id: context.id,
+        saved: false,
+        error: "the runtime produced no profile archive",
+      };
+    }
 
-    if (session.browser.connected) {
-      // Packing a live profile yields a torn archive, so refuse rather than
-      // store something that may not open.
-      logger.warn("context not saved: browser still running", {
+    const { size: sizeBytes } = await fs.stat(tarPath);
+    // A profile past this is almost always cache that escaped the prune list,
+    // and a runaway one becomes a permanent tax on every session that loads
+    // the context.
+    if (sizeBytes > MAX_PROFILE_BYTES) {
+      logger.error("context not saved: profile too large", {
         id: session.id,
         contextId: context.id,
+        sizeBytes,
       });
       return {
         id: context.id,
         saved: false,
-        error: "browser was still running when the profile was to be archived",
+        error: `profile is ${sizeBytes} bytes, over the ${MAX_PROFILE_BYTES} byte limit`,
       };
     }
 
-    const { tarPath, sizeBytes } = await packProfile(dir);
-    try {
-      let lastError = "commit failed";
-      for (let attempt = 1; attempt <= MAX_COMMIT_ATTEMPTS; attempt++) {
-        const slot = await fetchContextSlot(context.id);
-        if (!slot?.body) {
-          lastError = "could not read the context's current version";
-          break;
-        }
-        const { version } = slot.body;
-
-        // A fresh key every time, never the one currently pointed at: if this
-        // write fails partway, the live version is untouched and loadable.
-        const key = profileArchiveKey(context.id, version + 1);
-        await uploadProfile(tarPath, key);
-
-        const commit = await commitContextSnapshot(context.id, {
-          fromVersion: version,
-          key,
-          sizeBytes,
-        });
-
-        if (commit?.status === 200) {
-          logger.info("context profile saved", {
-            id: session.id,
-            contextId: context.id,
-            version: commit.body?.version,
-            sizeBytes,
-            attempt,
-          });
-          return { id: context.id, saved: true, sizeBytes };
-        }
-
-        if (commit?.status === 409) {
-          // Another session committed while we were uploading. Nothing to
-          // re-derive — the archive is already what this session ended with —
-          // so just aim at the version that won.
-          logger.info("context commit raced; retrying against the winner", {
-            id: session.id,
-            contextId: context.id,
-            attempt,
-            winner: commit.body?.version,
-          });
-          lastError = "lost the commit race repeatedly";
-          continue;
-        }
-
-        lastError = `commit rejected (${commit?.status ?? "no response"})`;
+    let lastError = "commit failed";
+    for (let attempt = 1; attempt <= MAX_COMMIT_ATTEMPTS; attempt++) {
+      const slot = await fetchContextSlot(context.id);
+      if (!slot?.body) {
+        lastError = "could not read the context's current version";
         break;
       }
+      const { version } = slot.body;
 
-      logger.error("context profile save failed", {
-        id: session.id,
-        contextId: context.id,
-        error: lastError,
+      // A fresh key every time, never the one currently pointed at: if this
+      // write fails partway, the live version is untouched and loadable.
+      const key = profileArchiveKey(context.id, version + 1);
+      await uploadProfile(tarPath, key);
+
+      const commit = await commitContextSnapshot(context.id, {
+        fromVersion: version,
+        key,
+        sizeBytes,
       });
-      return { id: context.id, saved: false, error: lastError };
-    } finally {
-      await fs.rm(tarPath, { force: true }).catch(() => {});
+
+      if (commit?.status === 200) {
+        logger.info("context profile saved", {
+          id: session.id,
+          contextId: context.id,
+          version: commit.body?.version,
+          sizeBytes,
+          attempt,
+        });
+        return { id: context.id, saved: true, sizeBytes };
+      }
+
+      if (commit?.status === 409) {
+        // Another session committed while we were uploading. Nothing to
+        // re-derive — the archive is already what this session ended with —
+        // so just aim at the version that won.
+        logger.info("context commit raced; retrying against the winner", {
+          id: session.id,
+          contextId: context.id,
+          attempt,
+          winner: commit.body?.version,
+        });
+        lastError = "lost the commit race repeatedly";
+        continue;
+      }
+
+      lastError = `commit rejected (${commit?.status ?? "no response"})`;
+      break;
     }
+
+    logger.error("context profile save failed", {
+      id: session.id,
+      contextId: context.id,
+      error: lastError,
+    });
+    return { id: context.id, saved: false, error: lastError };
   } catch (error) {
     // Never throw from teardown. The backend keeps the previous version live
     // and flags the context `failed`, so the profile degrades to "stale"
@@ -135,6 +154,6 @@ export async function persistContext(
     });
     return { id: context.id, saved: false, error: message };
   } finally {
-    await discardProfile(dir);
+    if (tarPath) await fs.rm(tarPath, { force: true }).catch(() => {});
   }
 }

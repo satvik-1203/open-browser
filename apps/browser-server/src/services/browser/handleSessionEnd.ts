@@ -61,9 +61,13 @@ export async function handleSessionEnd(
     });
   }
 
-  // Always called when a context is attached, persisting or not — it also owns
-  // removing the session's profile directory, which must happen either way.
   const context = await persistContext(session);
+
+  // Strictly after the profile is out: `dispose()` destroys the host, and for a
+  // sandbox runtime that takes the profile with it. Always runs, saved or not —
+  // it is the only thing that frees the sandbox, so skipping it on a failed save
+  // would leak a billing resource for every context that ever fails to persist.
+  await session.runtime.dispose();
 
   sessions.delete(session.id);
 

@@ -5,14 +5,17 @@ import { WebSocket, WebSocketServer } from "ws";
 const wss = new WebSocketServer({ noServer: true });
 
 export function proxyDevtools(
-  upstreamUrl: string,
+  target: { url: string; headers?: Record<string, string> },
   req: IncomingMessage,
   socket: Duplex,
   head: Buffer,
   onClientFrame?: (raw: string) => void,
 ): void {
   wss.handleUpgrade(req, socket, head, (client) => {
-    const upstream = new WebSocket(upstreamUrl);
+    // Headers carry the remote runtime's auth (a sandbox preview token). They
+    // are applied to the upstream dial only — never echoed to the client, which
+    // is the point of proxying rather than handing out the endpoint directly.
+    const upstream = new WebSocket(target.url, { headers: target.headers });
     const pending: Array<{ data: WebSocket.RawData; isBinary: boolean }> = [];
 
     const close = () => {

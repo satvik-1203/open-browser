@@ -6,7 +6,7 @@ import { browserRouter } from "@/routes/browser/index";
 import { metricsRouter } from "@/routes/metrics/index";
 import { browserCount } from "@/services/browser/browserCount";
 import { closeAllBrowsers } from "@/services/browser/closeAllBrowsers";
-import { refill } from "@/services/browser/pool";
+import { logLauncherStatus } from "@/services/browser/launchers/index";
 import {
   logCallbackStatus,
   notifyServerStarted,
@@ -51,10 +51,7 @@ const server = app.listen(port, () => {
   // A fresh process has no live sessions — tell the backend to reconcile any it
   // still has marked running (orphaned by this restart) to `failed`.
   notifyServerStarted();
-  // Pre-launch browsers now so the first start after a deploy doesn't pay for
-  // one. Deliberately not awaited: the server is already accepting traffic, and
-  // a start that arrives before the pool fills just launches its own.
-  refill();
+  logLauncherStatus();
 });
 
 server.on("upgrade", (req, socket, head) => {
