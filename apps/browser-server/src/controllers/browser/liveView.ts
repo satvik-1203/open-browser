@@ -11,6 +11,9 @@ import { getBrowserInfo } from "@/services/browser/getBrowserInfo";
  *
  * Interactive by default (the common case is a human taking over a session);
  * `?interactive=false` gives a watch-only stream that swallows no input.
+ *
+ * `?chrome=false` drops the tab strip and URL bar for a bare viewport — for an
+ * embedder who has built their own controls around the iframe.
  */
 export function liveView(req: Request, res: Response) {
   const { id } = req.params;
@@ -27,6 +30,7 @@ export function liveView(req: Request, res: Response) {
   }
 
   const interactive = req.query.interactive !== "false";
+  const chrome = req.query.chrome !== "false";
 
   // Explicitly framable: this page exists to be embedded, and some proxies
   // default to DENY. Left wide open on purpose — the session id is the secret,
@@ -36,6 +40,11 @@ export function liveView(req: Request, res: Response) {
   // Never cache: the embedded target id is only valid while the session lives.
   res.setHeader("Cache-Control", "no-store");
   res.type("html").send(
-    liveViewPage({ sessionId: info.id, targetId: info.targetId, interactive }),
+    liveViewPage({
+      sessionId: info.id,
+      targetId: info.targetId,
+      interactive,
+      chrome,
+    }),
   );
 }

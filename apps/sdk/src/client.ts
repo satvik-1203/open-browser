@@ -122,19 +122,23 @@ export class BrowserServer {
    *
    * Pass `interactive: false` for a watch-only stream that ignores clicks and
    * keystrokes — the right choice when a user should see the agent work but
-   * not be able to take the wheel.
+   * not be able to take the wheel. Pass `chrome: false` to drop the tab strip
+   * and URL bar, leaving a bare viewport to frame with your own controls.
    */
   async getLiveViewUrl(
     id: string,
-    options: { interactive?: boolean } = {},
+    options: { interactive?: boolean; chrome?: boolean } = {},
   ): Promise<string> {
     const { liveViewUrl } = await this.get(id);
-    if (options.interactive === false) {
-      const url = new URL(liveViewUrl);
-      url.searchParams.set("interactive", "false");
-      return url.toString();
+    if (options.interactive !== false && options.chrome !== false) {
+      return liveViewUrl;
     }
-    return liveViewUrl;
+    const url = new URL(liveViewUrl);
+    if (options.interactive === false) {
+      url.searchParams.set("interactive", "false");
+    }
+    if (options.chrome === false) url.searchParams.set("chrome", "false");
+    return url.toString();
   }
 
   /**

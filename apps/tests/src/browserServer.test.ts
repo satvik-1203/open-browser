@@ -96,12 +96,25 @@ test("liveViewUrl serves an embeddable page wired to the session's page target",
   assert.ok(html.includes(targetId!));
   assert.ok(html.includes("Page.startScreencast"));
   assert.ok(html.includes("Input.dispatchMouseEvent"));
+  // Browser chrome: the tab strip needs a browser-level target connection, the
+  // URL bar needs a navigate.
+  assert.ok(html.includes("Target.setDiscoverTargets"));
+  assert.ok(html.includes("Target.createTarget"));
+  assert.ok(html.includes("Page.navigate"));
+  assert.ok(html.includes('id="tabs"'));
+  assert.ok(html.includes('id="address"'));
 
   // Read-only mode drops input forwarding but keeps the stream.
   const readOnly = await fetch(`${started.liveViewUrl}?interactive=false`).then(
     (r) => r.text(),
   );
   assert.ok(readOnly.includes('"interactive":false'));
+
+  // Bare mode drops the chrome for embedders who supply their own controls.
+  const bare = await fetch(`${started.liveViewUrl}?chrome=false`).then((r) =>
+    r.text(),
+  );
+  assert.ok(bare.includes('"chrome":false'));
 
   await client.stop(started.id);
 });
