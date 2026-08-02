@@ -2,7 +2,9 @@ import { spawn, type ChildProcess } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const SERVER_DIR = fileURLToPath(new URL("../../server", import.meta.url));
+const SERVER_DIR = fileURLToPath(
+  new URL("../../browser-server", import.meta.url),
+);
 const TSX_BIN = path.join(SERVER_DIR, "node_modules", ".bin", "tsx");
 
 export interface TestServer {
@@ -13,7 +15,16 @@ export interface TestServer {
 export async function startTestServer(port: number): Promise<TestServer> {
   const child = spawn(TSX_BIN, ["src/index.ts"], {
     cwd: SERVER_DIR,
-    env: { ...process.env, PORT: String(port) },
+    env: {
+      ...process.env,
+      PORT: String(port),
+      // dotenv won't overwrite a key that's already set, so blanking these here
+      // wins over the developer's `apps/browser-server/.env`: no bypass token
+      // (the SDK doesn't send one) and local Chrome rather than whatever remote
+      // runtime that file happens to point at.
+      BROWSER_SERVER_BYPASS_TOKEN: "",
+      BROWSER_LAUNCHER: "local",
+    },
     stdio: ["ignore", "pipe", "pipe"],
   });
 

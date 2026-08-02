@@ -13,7 +13,7 @@ export function get(req: Request, res: Response) {
     return;
   }
 
-  const { webSocketDebuggerUrl, debuggerUrl } = buildDevtoolsUrls(
+  const { webSocketDebuggerUrl, debuggerUrl, liveViewUrl } = buildDevtoolsUrls(
     req.headers.host,
     info.id,
     info.targetId,
@@ -25,6 +25,7 @@ export function get(req: Request, res: Response) {
     connected: info.connected,
     webSocketDebuggerUrl,
     debuggerUrl,
+    liveViewUrl,
     recording: info.recording,
   };
   res.json(response);

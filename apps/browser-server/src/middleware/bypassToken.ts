@@ -26,8 +26,10 @@ function tokensMatch(provided: string, expected: string): boolean {
 // The DevTools inspector frontend is loaded by a plain browser (the "Open
 // DevTools" link) which can't attach the bypass-token header. Its assets are
 // reachable by session id only — the same tokenless surface as the CDP ws URLs
-// we already hand out — so let that path through the gate.
-const DEVTOOLS_ASSET_PATH = /^\/browser\/[^/]+\/devtools\//;
+// we already hand out — so let that path through the gate. The embeddable live
+// view is the same deal, only more so: it is *designed* to be loaded by a third
+// party's <iframe>, which can't attach headers at all.
+const DEVTOOLS_ASSET_PATH = /^\/browser\/[^/]+\/(?:devtools\/|live$)/;
 
 export function bypassToken(req: Request, res: Response, next: NextFunction) {
   const expected = process.env.BROWSER_SERVER_BYPASS_TOKEN;

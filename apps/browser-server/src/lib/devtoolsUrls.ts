@@ -1,6 +1,7 @@
 export interface DevtoolsUrls {
   webSocketDebuggerUrl: string;
   debuggerUrl: string;
+  liveViewUrl: string;
 }
 
 /**
@@ -9,6 +10,10 @@ export interface DevtoolsUrls {
  * `https://` deployment behind a terminating proxy), `ws`/`http` otherwise.
  * The inspector's `?ws=` param stays scheme-less on purpose — the DevTools
  * frontend infers ws/wss from the page it was loaded over.
+ *
+ * Three URLs, three audiences: `webSocketDebuggerUrl` for automation clients,
+ * `debuggerUrl` for a human who wants DevTools panels, and `liveViewUrl` for
+ * embedding the viewport in someone else's product.
  */
 export function buildDevtoolsUrls(
   host: string | undefined,
@@ -21,6 +26,7 @@ export function buildDevtoolsUrls(
   const webSocketDebuggerUrl = `${wsScheme}://${host}/devtools/browser/${id}`;
   const pageWs = `${host}/devtools/page/${id}/${targetId}`;
   const debuggerUrl = `${httpScheme}://${host}/browser/${id}/devtools/inspector.html?ws=${pageWs}`;
+  const liveViewUrl = `${httpScheme}://${host}/browser/${id}/live`;
 
-  return { webSocketDebuggerUrl, debuggerUrl };
+  return { webSocketDebuggerUrl, debuggerUrl, liveViewUrl };
 }

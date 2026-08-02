@@ -49,6 +49,11 @@ class LocalBrowser implements LaunchedBrowser {
     return `ws://127.0.0.1:${port}/devtools/page/${targetId}`;
   }
 
+  httpEndpoint(): string {
+    const port = new URL(this.browser.wsEndpoint()).port;
+    return `http://127.0.0.1:${port}`;
+  }
+
   wsHeaders(): undefined {
     return undefined;
   }
@@ -96,6 +101,7 @@ class LocalLauncher implements BrowserLauncher {
   readonly name = "local";
 
   async launch(spec: LaunchSpec): Promise<LaunchedBrowser> {
+    const started = Date.now();
     const profileDir = spec.profileArchive
       ? await extractProfile(spec.profileArchive)
       : undefined;
@@ -111,6 +117,21 @@ class LocalLauncher implements BrowserLauncher {
           userDataDir: profileDir,
           noSandbox: process.env.PUPPETEER_NO_SANDBOX === "true",
         }),
+      });
+
+      // Where this session's Chrome physically is. The counterpart log in the
+      // Daytona adapter carries the same `launcher`/`ms` fields, so one query
+      // answers "where did this session run, and how long did getting there
+      // take" regardless of which backend served it.
+      logger.info("browser launched", {
+        id: spec.id,
+        launcher: this.name,
+        location: `${os.hostname()} (this process)`,
+        pid: browser.process()?.pid ?? null,
+        cdpEndpoint: browser.wsEndpoint(),
+        profileDir: profileDir ?? null,
+        headless: spec.headless,
+        ms: Date.now() - started,
       });
       return new LocalBrowser(browser, profileDir);
     } catch (error) {

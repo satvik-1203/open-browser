@@ -5,6 +5,7 @@ import { getRecordingBody } from "@/controllers/browser/getRecordingBody";
 import { getRecordingEvents } from "@/controllers/browser/getRecordingEvents";
 import { getRecordingUrl } from "@/controllers/browser/getRecordingUrl";
 import { inspectorAsset } from "@/controllers/browser/inspectorAsset";
+import { liveView } from "@/controllers/browser/liveView";
 import { start } from "@/controllers/browser/start";
 import { stop } from "@/controllers/browser/stop";
 
@@ -15,6 +16,8 @@ browserRouter.post("/stop", stop);
 // Must precede "/:id" so the literal path isn't captured as an id.
 browserRouter.get("/metrics", getMetrics);
 browserRouter.get(/^\/(?<id>[^/]+)\/devtools\/(?<assetPath>.*)$/, inspectorAsset);
+// The embeddable viewport page. Before "/:id" for the same reason as above.
+browserRouter.get("/:id/live", liveView);
 // More specific recording routes before "/:id/recording" and "/:id".
 browserRouter.get("/:id/recording/events", getRecordingEvents);
 browserRouter.get("/:id/recording/bodies/:requestId", getRecordingBody);

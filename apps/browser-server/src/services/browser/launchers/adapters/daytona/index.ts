@@ -58,6 +58,10 @@ class DaytonaBrowser implements LaunchedBrowser {
     return `${this.previewUrl.replace(/^https/, "wss")}/devtools/page/${targetId}`;
   }
 
+  httpEndpoint(): string {
+    return this.previewUrl;
+  }
+
   wsHeaders(): Record<string, string> | undefined {
     return this.previewToken
       ? { "x-daytona-preview-token": this.previewToken }
@@ -217,13 +221,24 @@ class DaytonaLauncher implements BrowserLauncher {
       );
       launched.browserWsPath = wsPath;
 
-      logger.info("sandbox browser ready", {
+      // Where this session's Chrome physically is. Shares `launcher`/`location`
+      // /`ms` with the local adapter's log so one query covers both backends —
+      // and names the sandbox, which is the handle you need to go look at (or
+      // bill, or kill) the machine a given session ran on.
+      logger.info("browser launched", {
         id: spec.id,
+        launcher: this.name,
+        location: `daytona sandbox ${sandbox.id}`,
         sandboxId: sandbox.id,
-        ms: Date.now() - started,
+        // The Daytona region/target this sandbox landed in, when the SDK
+        // reports one — a session that feels slow is often just far away.
+        target: sandbox.target ?? null,
+        cdpEndpoint: preview.url,
+        chromeVersion: version.Browser,
         headless: spec.headless,
         warm: Boolean(pooled),
         poolDepth: this.pool.depth,
+        ms: Date.now() - started,
       });
       return launched;
     } catch (error) {

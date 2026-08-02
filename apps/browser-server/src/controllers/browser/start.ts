@@ -15,14 +15,15 @@ export async function start(req: Request, res: Response) {
     // fall back to a server-generated id for direct/legacy callers.
     const { id: providedId, ...options } = req.body as StartBrowserPayload;
     const { id, targetId } = await startBrowser(options, providedId);
-    const { webSocketDebuggerUrl, debuggerUrl } = buildDevtoolsUrls(
-      req.headers.host,
-      id,
-      targetId,
-      isSecureRequest(req),
-    );
+    const { webSocketDebuggerUrl, debuggerUrl, liveViewUrl } =
+      buildDevtoolsUrls(req.headers.host, id, targetId, isSecureRequest(req));
 
-    const response: StartBrowserResponse = { id, webSocketDebuggerUrl, debuggerUrl };
+    const response: StartBrowserResponse = {
+      id,
+      webSocketDebuggerUrl,
+      debuggerUrl,
+      liveViewUrl,
+    };
     res.json(response);
   } catch (err) {
     if (
