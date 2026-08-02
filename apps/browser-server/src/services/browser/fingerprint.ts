@@ -147,6 +147,27 @@ export async function applyFingerprint(
  * Applying it only to the first page is a leak with a sharp edge: a popup or a
  * new tab (an OAuth window, say) would present the untouched identity, so the
  * same "user" would appear to change browsers mid-login.
+ *
+ * ---
+ * **Start here if you are working on start latency.** This is the single
+ * largest phase of a start once the browser runs in a Daytona sandbox.
+ * Measured over 9 starts (2026-08-02, the `fingerprint` phase in the
+ * "browser start timings" log):
+ *
+ *     fingerprint   min 1580 / median 1889 / max 2630 ms
+ *     → 34-42% of a non-context start, and ~41% when the sandbox was warm
+ *
+ * It is larger than sandbox allocation on a good run (~1s), so it outranks
+ * pooling as an optimization target until traffic justifies holding idle
+ * sandboxes — see `adapters/daytona/warmPool.ts`, which is deliberately off.
+ *
+ * The cost is round trips, not computation: this opens a CDP session per
+ * target and sends several `Emulation.*` commands sequentially, over a
+ * WebSocket that now crosses the network to the sandbox rather than staying
+ * on loopback. Sending the independent overrides concurrently, or collapsing
+ * them into one `Page.addScriptToEvaluateOnNewDocument`, is the obvious first
+ * thing to try. Measure before assuming — the per-target loop may matter more
+ * than the per-command latency.
  */
 export async function installFingerprint(
   browser: Browser,

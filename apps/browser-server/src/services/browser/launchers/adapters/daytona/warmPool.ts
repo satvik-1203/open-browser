@@ -17,6 +17,11 @@ import type { Sandbox } from "@daytonaio/sdk";
  * timeout rather than variable load. Chrome itself is steady at ~1s. So the
  * entire tail of a cold start is *allocation*, and allocation is exactly what
  * can be paid for ahead of time. Set this to 2 and a start stops paying it.
+ *
+ * But if you are here to cut start latency rather than to cut the tail, look at
+ * `installFingerprint` first: it is 34-42% of a non-context start (median
+ * ~1.9s), which is more than allocation costs on a good run. Pooling only wins
+ * back the ~21s outlier, and it bills continuously to do it.
  */
 const WARM_POOL_SIZE = 0;
 
