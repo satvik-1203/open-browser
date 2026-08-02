@@ -37,6 +37,14 @@ export interface LaunchedBrowser {
   /** Per-page CDP endpoint for a target id. */
   pageWsEndpoint(targetId: string): string;
   /**
+   * HTTP origin of Chrome's own DevTools endpoint — where `/json/*` and the
+   * bundled inspector frontend live. Separate from `wsEndpoint()` because a
+   * remote runtime reaches Chrome through a proxy whose URL has no port to
+   * borrow, so deriving one from the ws endpoint silently produces a dead
+   * loopback address.
+   */
+  httpEndpoint(): string;
+  /**
    * Headers required to reach the endpoints above. Remote runtimes put their
    * auth here; the local one has none, which is why it is optional rather than
    * an empty object every caller has to think about.

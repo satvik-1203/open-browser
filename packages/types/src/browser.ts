@@ -86,6 +86,13 @@ export interface StartBrowserResponse {
   id: string;
   webSocketDebuggerUrl: string;
   debuggerUrl: string;
+  /**
+   * Embeddable page showing just the browser's viewport — the URL to drop into
+   * an `<iframe>`. Interactive by default; append `?interactive=false` for a
+   * read-only stream. Distinct from `debuggerUrl`, which is Chrome's full
+   * DevTools frontend (panels and all).
+   */
+  liveViewUrl: string;
 }
 
 export interface StopBrowserResponse {
@@ -103,5 +110,7 @@ export interface GetBrowserResponse {
   connected: boolean;
   webSocketDebuggerUrl: string;
   debuggerUrl: string;
+  /** Embeddable viewport-only page — see `StartBrowserResponse.liveViewUrl`. */
+  liveViewUrl: string;
   recording?: RecordingInfo;
 }

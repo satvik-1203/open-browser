@@ -134,9 +134,11 @@ export function BrowserDetail({ id }: { id: string }) {
             value={info.webSocketDebuggerUrl}
           />
           <CdpField label="DevTools URL" value={info.debuggerUrl} openable />
+          <CdpField label="Live view URL" value={info.liveViewUrl} openable />
           <p className="text-muted-foreground text-xs">
             Connect any CDP client (Playwright, Puppeteer) to the WebSocket URL —
-            no token required.
+            no token required. The live view URL is the embeddable one: drop it
+            in an <code>&lt;iframe&gt;</code> to show just the page.
           </p>
         </div>
       )}

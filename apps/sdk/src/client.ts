@@ -108,6 +108,36 @@ export class BrowserServer {
   }
 
   /**
+   * URL of the session's embeddable live view — drop it straight into an
+   * `<iframe>` to show the browser to a user.
+   *
+   * This is the page-only view: the viewport and nothing else. It is not
+   * `debuggerUrl`, which loads Chrome's full DevTools frontend (panels,
+   * console, the lot) and is meant for a developer inspecting a session, not
+   * for embedding.
+   *
+   * Resolved from the server rather than assembled here because the live view
+   * is served by the browser server on its own public host, which is not
+   * necessarily the `hostUrl` this client talks to.
+   *
+   * Pass `interactive: false` for a watch-only stream that ignores clicks and
+   * keystrokes — the right choice when a user should see the agent work but
+   * not be able to take the wheel.
+   */
+  async getLiveViewUrl(
+    id: string,
+    options: { interactive?: boolean } = {},
+  ): Promise<string> {
+    const { liveViewUrl } = await this.get(id);
+    if (options.interactive === false) {
+      const url = new URL(liveViewUrl);
+      url.searchParams.set("interactive", "false");
+      return url.toString();
+    }
+    return liveViewUrl;
+  }
+
+  /**
    * Resolve the storage URL for a session's recording. Works after `stop()`
    * too, since the URL is derived from the id. The recording's existence is
    * verified in storage — throws `BrowserServerError` (404) if it isn't there.
