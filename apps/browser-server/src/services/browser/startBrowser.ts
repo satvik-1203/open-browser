@@ -84,6 +84,10 @@ export async function startBrowser(
       headless,
       lang,
       proxy,
+      // A context session always runs on its own user data directory, whether
+      // or not there was anything to restore into it — otherwise a context that
+      // has never been saved could never take its first save.
+      useProfile: Boolean(context),
       profileArchive,
     });
   } finally {

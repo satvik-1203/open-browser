@@ -102,9 +102,14 @@ class LocalLauncher implements BrowserLauncher {
 
   async launch(spec: LaunchSpec): Promise<LaunchedBrowser> {
     const started = Date.now();
+    // An empty directory when there is nothing stored yet: the session still
+    // needs a profile of its own for `exportProfile` to have anything to pack,
+    // which is how a context takes its first save.
     const profileDir = spec.profileArchive
       ? await extractProfile(spec.profileArchive)
-      : undefined;
+      : spec.useProfile
+        ? await fs.mkdtemp(path.join(os.tmpdir(), "ob-profile-"))
+        : undefined;
 
     try {
       const browser = await puppeteer.launch({

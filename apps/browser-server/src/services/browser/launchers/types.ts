@@ -14,9 +14,18 @@ export interface LaunchSpec {
   lang: string;
   proxy?: ProxyOptions;
   /**
+   * Run on a user data directory this runtime can hand back from
+   * `exportProfile()`. Separate from `profileArchive` because a context's very
+   * first session has nothing stored yet: it must still get an exportable
+   * profile, or the state it builds up is what gets thrown away instead of
+   * becoming the context's first save.
+   */
+  useProfile?: boolean;
+  /**
    * Local path to a `.tar.gz` of a Chromium user data directory to start from.
    * The launcher is responsible for getting it wherever Chrome can read it —
-   * extracted on disk locally, or uploaded into the sandbox remotely.
+   * extracted on disk locally, or uploaded into the sandbox remotely. Only
+   * meaningful alongside `useProfile`.
    */
   profileArchive?: string;
 }

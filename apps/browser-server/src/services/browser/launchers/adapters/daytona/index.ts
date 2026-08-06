@@ -217,7 +217,11 @@ class DaytonaLauncher implements BrowserLauncher {
         sandbox,
         preview.url,
         previewToken,
-        Boolean(spec.profileArchive),
+        // Chrome in the sandbox always runs on `PROFILE_DIR`, so the question is
+        // only whether anyone wants the profile back — true for a context's
+        // first session too, which has no archive to restore but every reason
+        // to be saved.
+        Boolean(spec.useProfile || spec.profileArchive),
       );
       launched.browserWsPath = wsPath;
 
