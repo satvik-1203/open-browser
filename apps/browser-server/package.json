@@ -7,6 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsup",
     "start": "node dist/index.js",
+    "snapshot:build": "node scripts/build-daytona-snapshot.mjs",
     "lint": "eslint --max-warnings 0",
     "check-types": "tsc --noEmit",
     "bench:seed": "tsx bench/seed.ts",
