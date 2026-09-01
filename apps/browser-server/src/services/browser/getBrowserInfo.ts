@@ -10,5 +10,6 @@ export function getBrowserInfo(id: string): BrowserInfo | undefined {
     connected: session.browser.connected,
     targetId: session.targetId,
     recording: session.recording,
+    expiresAt: session.expiresAt,
   };
 }

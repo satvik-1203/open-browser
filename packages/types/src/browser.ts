@@ -53,6 +53,21 @@ export interface StartBrowserOptions {
    * the server; recording fails if the server has no storage configured.
    */
   record?: boolean;
+  /**
+   * Stop the session automatically this many milliseconds after it starts.
+   *
+   * The deadline is not a hard ceiling. `POST /browser/:id/keepalive` moves it
+   * to `now + timeoutMs`, so a caller that heartbeats while a user is present
+   * turns this into an idle timeout, and one that never calls it gets a plain
+   * TTL. That is the point of the option: a browser nobody is watching is still
+   * billing, and the tab that started it cannot be relied on to say goodbye. A
+   * closed laptop, a crashed tab and a dropped network all look identical from
+   * here, and none of them send a stop.
+   *
+   * Omitted means no deadline, which is the old behaviour and stays the default
+   * so an agent run is never cut off mid-task by a value nobody chose.
+   */
+  timeoutMs?: number;
 }
 
 /**
@@ -93,6 +108,11 @@ export interface StartBrowserResponse {
    * DevTools frontend (panels and all).
    */
   liveViewUrl: string;
+  /**
+   * When the session is currently due to be stopped (epoch milliseconds), or
+   * absent when it was started without `timeoutMs` and so has no deadline.
+   */
+  expiresAt?: number;
 }
 
 export interface StopBrowserResponse {
@@ -113,4 +133,15 @@ export interface GetBrowserResponse {
   /** Embeddable viewport-only page — see `StartBrowserResponse.liveViewUrl`. */
   liveViewUrl: string;
   recording?: RecordingInfo;
+  /** Current deadline (epoch ms), absent when the session has no timeout. */
+  expiresAt?: number;
+}
+
+/**
+ * What a keepalive returns: the deadline as it now stands, so a caller can see
+ * that its heartbeat landed rather than assuming it did.
+ */
+export interface KeepAliveBrowserResponse {
+  id: string;
+  expiresAt: number;
 }

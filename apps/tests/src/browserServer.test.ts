@@ -219,3 +219,59 @@ test("get() and stop() 404 for an id that never existed", async () => {
     (err: unknown) => err instanceof BrowserServerError && err.status === 404,
   );
 });
+
+test("timeoutMs stops a session that is never kept alive", async () => {
+  const timeoutMs = 5_000;
+  const started = await client.start({ headless: true, timeoutMs });
+
+  // Reported back so a caller can show the deadline rather than recompute it,
+  // and so a heartbeat has something to compare against.
+  assert.ok(started.expiresAt !== undefined);
+  assert.ok(started.expiresAt > Date.now());
+
+  const status = await eventualStatus(statusOf(() => client.get(started.id)), {
+    // Generous against the deadline itself: stop() only schedules teardown, so
+    // the session leaves the map a moment after the timer fires.
+    timeoutMs: timeoutMs + 10_000,
+  });
+  assert.equal(status, 404);
+});
+
+test("keepAlive() pushes the deadline back, and 404s once the session is gone", async () => {
+  const started = await client.start({ headless: true, timeoutMs: 5_000 });
+
+  // Real elapsed time, so the new deadline is provably later rather than just
+  // recomputed from the same instant.
+  await new Promise((resolve) => setTimeout(resolve, 1_000));
+
+  const extended = await client.keepAlive(started.id);
+  assert.equal(extended.id, started.id);
+  assert.ok(extended.expiresAt > (started.expiresAt ?? 0));
+
+  // The session is still alive well past where it would have died untended.
+  const live = await client.get(started.id);
+  assert.equal(live.expiresAt, extended.expiresAt);
+
+  await client.stop(started.id);
+  const status = await eventualStatus(statusOf(() => client.keepAlive(started.id)));
+  assert.equal(status, 404);
+});
+
+test("a session started without timeoutMs has no deadline to extend", async () => {
+  const started = await client.start({ headless: true });
+  assert.equal(started.expiresAt, undefined);
+
+  await assert.rejects(
+    () => client.keepAlive(started.id),
+    (err: unknown) => err instanceof BrowserServerError && err.status === 404,
+  );
+
+  await client.stop(started.id);
+});
+
+test("start() rejects a timeoutMs this server will not honour", async () => {
+  await assert.rejects(
+    () => client.start({ headless: true, timeoutMs: 300 }),
+    (err: unknown) => err instanceof BrowserServerError && err.status === 400,
+  );
+});

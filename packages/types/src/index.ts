@@ -3,6 +3,7 @@ export type {
   CookieData,
   GetBrowserResponse,
   GetRecordingUrlResponse,
+  KeepAliveBrowserResponse,
   ProxyOptions,
   ResolvedContext,
   StartBrowserOptions,

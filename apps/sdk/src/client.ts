@@ -9,6 +9,7 @@ import type {
   GetBrowserResponse,
   GetRecordingUrlResponse,
   GetServerMetricsResponse,
+  KeepAliveBrowserResponse,
   SortOrder,
   StartBrowserOptions,
   StartBrowserResponse,
@@ -33,6 +34,12 @@ export class BrowserServer {
 
   /**
    * Start a browser.
+   *
+   * Pass `timeoutMs` to have the session stop itself rather than run until
+   * someone remembers to. Nothing else stops a browser whose owner closed the
+   * tab, crashed, or lost the network, and all three look the same from here.
+   * `keepAlive` pushes that deadline back, so a heartbeat turns it into an idle
+   * timeout.
    *
    * Pass `contextId` to boot it with a saved profile's cookies and localStorage
    * — the session picks up wherever that profile left off, so an agent logs in
@@ -104,6 +111,27 @@ export class BrowserServer {
   async get(id: string): Promise<GetBrowserResponse> {
     return this.request<GetBrowserResponse>(
       `/browser/${encodeURIComponent(id)}`,
+    );
+  }
+
+  /**
+   * Push a session's automatic stop back by its full `timeoutMs`, and report
+   * the deadline as it now stands.
+   *
+   * This is the other half of `start({ timeoutMs })`. Heartbeat it while the
+   * session is genuinely in use and the timeout behaves as an idle timeout;
+   * never call it and the timeout is a plain TTL. Call it a little more often
+   * than half the timeout so one dropped request does not kill a live session.
+   *
+   * Throws `BrowserServerError` (404) once the session is gone, which is the
+   * signal to stop heartbeating rather than something to retry. A session
+   * started without `timeoutMs` has no deadline to move and answers the same
+   * way, because a caller holding one open has misunderstood what it started.
+   */
+  async keepAlive(id: string): Promise<KeepAliveBrowserResponse> {
+    return this.request<KeepAliveBrowserResponse>(
+      `/browser/${encodeURIComponent(id)}/keepalive`,
+      { method: "POST" },
     );
   }
 

@@ -36,6 +36,12 @@ export async function handleSessionEnd(
   if (session.endHandled) return;
   session.endHandled = true;
 
+  // Cleared here rather than in each caller because this is the one funnel every
+  // ending goes through: a stop, a crash, a shutdown, or the timeout itself. A
+  // timer left armed past teardown is harmless today only because it re-checks
+  // the map, and relying on that is how the second bug gets written.
+  if (session.expiryTimer) clearTimeout(session.expiryTimer);
+
   // Never let a recording-finalization failure abort teardown: if it threw, the
   // session would linger in the map (a zombie) and the backend would never get
   // the end callback. Finalize is best-effort; deletion + notify must still run.
