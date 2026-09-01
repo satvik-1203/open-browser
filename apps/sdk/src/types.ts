@@ -21,6 +21,7 @@ export type {
   GetBrowserResponse,
   GetRecordingUrlResponse,
   GetServerMetricsResponse,
+  KeepAliveBrowserResponse,
   ProxyOptions,
   RecordingInfo,
   RecordingStatus,

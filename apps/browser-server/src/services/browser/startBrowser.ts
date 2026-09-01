@@ -8,12 +8,17 @@ import { sessions } from "@/lib/browsers";
 import type { BrowserSession } from "@/lib/browsers.types";
 import {
   ContextNotStoredError,
+  InvalidTimeoutError,
   LocalStorageRequiresUrlError,
   RecordingNotConfiguredError,
 } from "@/services/browser/errors";
 import { installFingerprint } from "@/services/browser/fingerprint";
 import { handleSessionEnd } from "@/services/browser/handleSessionEnd";
 import { getLauncher } from "@/services/browser/launchers/index";
+import {
+  armDeadline,
+  validateTimeout,
+} from "@/services/browser/sessionDeadline";
 import { PhaseTimer, timed } from "@/services/browser/timings";
 import type { StartBrowserResult } from "@/services/browser/types";
 import { installViewport } from "@/services/browser/viewport";
@@ -40,6 +45,7 @@ export async function startBrowser(
     proxy,
     context,
     record,
+    timeoutMs,
   } = options;
 
   if (localstorage && !url) {
@@ -57,6 +63,10 @@ export async function startBrowser(
       "contexts are not configured on this server",
     );
   }
+  // Checked before anything is launched. A bad timeout is a typo in the request,
+  // and finding it after a sandbox has been paid for helps nobody.
+  const timeout = validateTimeout(timeoutMs);
+  if (!timeout.ok) throw new InvalidTimeoutError(timeout.detail);
 
   // The legacy top-level `userAgent` is the same knob as `fingerprint.userAgent`
   // — fold it in so both paths produce one coherent identity rather than a UA
@@ -151,6 +161,7 @@ export async function startBrowser(
       browser,
       targetId: targetInfo.targetId,
       createdAt: Date.now(),
+      timeoutMs: timeout.timeoutMs,
     };
 
     if (context) {
@@ -179,6 +190,10 @@ export async function startBrowser(
     });
 
     sessions.set(id, session);
+    // After the map, never before: the timer looks the session up by id when it
+    // fires, and arming it against a map that does not have it yet would give a
+    // deadline that silently never stops anything.
+    const expiresAt = armDeadline(session);
     logger.info("browser start timings", {
       id,
       launcher: launcher.name,
@@ -188,6 +203,7 @@ export async function startBrowser(
       id,
       wsEndpoint: runtime.wsEndpoint(),
       targetId: targetInfo.targetId,
+      expiresAt,
     };
   } catch (error) {
     // No session owns the runtime yet, so nothing else would ever tear it down —

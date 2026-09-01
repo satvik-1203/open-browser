@@ -27,6 +27,7 @@ export function get(req: Request, res: Response) {
     debuggerUrl,
     liveViewUrl,
     recording: info.recording,
+    expiresAt: info.expiresAt,
   };
   res.json(response);
 }

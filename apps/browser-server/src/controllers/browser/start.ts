@@ -4,6 +4,7 @@ import { buildDevtoolsUrls } from "@/lib/devtoolsUrls";
 import { isSecureRequest } from "@/lib/requestProtocol";
 import {
   ContextNotStoredError,
+  InvalidTimeoutError,
   LocalStorageRequiresUrlError,
   RecordingNotConfiguredError,
 } from "@/services/browser/errors";
@@ -14,7 +15,7 @@ export async function start(req: Request, res: Response) {
     // The backend mints the session id so it can log the row before this call;
     // fall back to a server-generated id for direct/legacy callers.
     const { id: providedId, ...options } = req.body as StartBrowserPayload;
-    const { id, targetId } = await startBrowser(options, providedId);
+    const { id, targetId, expiresAt } = await startBrowser(options, providedId);
     const { webSocketDebuggerUrl, debuggerUrl, liveViewUrl } =
       buildDevtoolsUrls(req.headers.host, id, targetId, isSecureRequest(req));
 
@@ -23,13 +24,15 @@ export async function start(req: Request, res: Response) {
       webSocketDebuggerUrl,
       debuggerUrl,
       liveViewUrl,
+      expiresAt,
     };
     res.json(response);
   } catch (err) {
     if (
       err instanceof LocalStorageRequiresUrlError ||
       err instanceof RecordingNotConfiguredError ||
-      err instanceof ContextNotStoredError
+      err instanceof ContextNotStoredError ||
+      err instanceof InvalidTimeoutError
     ) {
       res.status(400).json({ error: err.message });
       return;

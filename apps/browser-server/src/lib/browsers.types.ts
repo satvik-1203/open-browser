@@ -42,4 +42,15 @@ export interface BrowserSession {
   /** Guards against double end-handling when an explicit teardown (stop /
    * shutdown) and the browser's `disconnected` event race. */
   endHandled?: boolean;
+  /**
+   * How long a keepalive buys, and how long the session got at start. Absent
+   * when it was started without a deadline. Kept on the session because an
+   * extension is worth exactly one more of these, so the value has to outlive
+   * the start call that named it.
+   */
+  timeoutMs?: number;
+  /** When the countdown currently expires (epoch ms). Moves on every keepalive. */
+  expiresAt?: number;
+  /** The live countdown. Cleared by teardown so a settled session cannot fire. */
+  expiryTimer?: NodeJS.Timeout;
 }

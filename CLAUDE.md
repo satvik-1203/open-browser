@@ -8,8 +8,13 @@ Turborepo + pnpm workspaces.
 
 - `apps/dashboard` — Next.js app (auth + product UI) AND the public browser API.
   Tailwind v4 + shadcn/ui. Route handlers own the browser lifecycle
-  (`/browser/start|stop`, `GET /browser`, `GET /browser/:id[/recording]`) and log every
-  session to the `browser_session` table, ownership-scoped by `userId`. It also owns
+  (`/browser/start|stop`, `POST /browser/:id/keepalive`, `GET /browser`, `GET /browser/:id[/recording]`) and log every
+  session to the `browser_session` table, ownership-scoped by `userId`.
+  A session started with `timeoutMs` stops itself when its deadline passes;
+  `keepalive` moves the deadline to `now + timeoutMs`, so a caller that heartbeats
+  gets an idle timeout and one that never calls it gets a plain TTL. The deadline
+  lives only on the browser-server session (`services/browser/sessionDeadline.ts`),
+  never in the DB, so a crash leaves nothing to reconcile. It also owns
   **contexts** (`POST|GET /context`, `GET|DELETE /context/:id`) — saved cookies +
   localStorage replayed into later sessions. The browser server has no database, so the
   dashboard resolves a `contextId` into the storage keys to read and write

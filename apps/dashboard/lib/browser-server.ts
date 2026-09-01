@@ -6,6 +6,7 @@ import type {
   GetBrowserMetricsResponse,
   GetBrowserResponse,
   GetRecordingUrlResponse,
+  KeepAliveBrowserResponse,
   StartBrowserPayload,
   StartBrowserResponse,
   StopBrowserResponse,
@@ -150,6 +151,12 @@ export const browserServer = {
     return request<GetBrowserResponse>(
       "GET",
       `/browser/${encodeURIComponent(id)}`,
+    );
+  },
+  keepAlive(id: string) {
+    return request<KeepAliveBrowserResponse>(
+      "POST",
+      `/browser/${encodeURIComponent(id)}/keepalive`,
     );
   },
   getRecordingUrl(id: string, download = false) {
